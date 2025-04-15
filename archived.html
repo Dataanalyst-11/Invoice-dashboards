@@ -31,7 +31,7 @@
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = '';
 
-        data.forEach(row => {
+        [...data].reverse().forEach(row => {
           const confirmationOut = row["CONFIRMATION TIME OUT"];
           const rider = row["RIDER"];
           if (confirmationOut && rider) {
