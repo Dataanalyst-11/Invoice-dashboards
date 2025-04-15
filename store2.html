@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>In Store - Invoice Dashboard</title>
   <style>
     body {
@@ -49,50 +49,50 @@
   </table>
 
   <script>
-  const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
-  const shownInvoices = new Set();
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
+    const shownInvoices = new Set();
 
-  async function fetchData() {
-    try {
-      const res = await fetch(API_URL);
-      const data = await res.json();
-      const tbody = document.getElementById('table-body');
-
-      // Newest rows first
-      data.reverse();
-
-      data.forEach(row => {
-        const storeIn = row["Store Time In"];
-        const storeOut = row["Store Time Out"];
-        const invoice = row["INVOICE NUMBER"] || '';
-
-        if (storeIn && !storeOut && !shownInvoices.has(invoice)) {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${invoice}</td>
-            <td>${row["STORE EXECUTIVE"] || ''}</td>
-            <td>${String(storeIn)}</td>
-            <td>${row["CUSTOMER NAME"] || ''}</td>
-            <td>${row["ROUTE"] || ''}</td>
-          `;
-          // Insert new row at top
-          if (tbody.firstChild) {
-            tbody.insertBefore(tr, tbody.firstChild);
-          } else {
-            tbody.appendChild(tr);
-          }
-
-          shownInvoices.add(invoice);
-        }
-      });
-    } catch (err) {
-      console.error('Fetch error:', err);
+    function formatDateTime(input) {
+      const date = new Date(input);
+      if (isNaN(date.getTime())) return input; // fallback if invalid date
+      const pad = n => n.toString().padStart(2, '0');
+      return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     }
-  }
 
-  fetchData();
-  setInterval(fetchData, 30000); // Refresh every 30 seconds
-</script>
+    async function fetchData() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const tbody = document.getElementById('table-body');
 
+        // Show newest first
+        data.reverse();
+
+        data.forEach(row => {
+          const storeIn = row["Store Time In"];
+          const storeOut = row["Store Time Out"];
+          const invoice = row["INVOICE NUMBER"] || '';
+
+          if (storeIn && !storeOut && !shownInvoices.has(invoice)) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${invoice}</td>
+              <td>${row["STORE EXECUTIVE"] || ''}</td>
+              <td>${formatDateTime(storeIn)}</td>
+              <td>${row["CUSTOMER NAME"] || ''}</td>
+              <td>${row["ROUTE"] || ''}</td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+            shownInvoices.add(invoice);
+          }
+        });
+      } catch (err) {
+        console.error('Fetch error:', err);
+      }
+    }
+
+    fetchData();
+    setInterval(fetchData, 30000); // Refresh every 30 seconds
+  </script>
 </body>
 </html>
