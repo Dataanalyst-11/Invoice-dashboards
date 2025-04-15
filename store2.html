@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>In Store - Invoice Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #fefefe;
+      padding: 20px;
+    }
+    h1 {
+      background: #007bff;
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+    th {
+      background-color: #f1f1f1;
+    }
+  </style>
+</head>
+<body>
+  <h1>🟡 In Store Invoices</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Invoice Number</th>
+        <th>Store Executive</th>
+        <th>Store Time In</th>
+        <th>Customer Name</th>
+        <th>Route</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
+
+    async function fetchData() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        data.forEach(row => {
+          const storeIn = row["Store Time In"];
+          const storeOut = row["Store Time Out"];
+
+          if (storeIn && !storeOut) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${row["INVOICE NUMBER"] || ''}</td>
+              <td>${row["STORE EXECUTIVE"] || ''}</td>
+              <td>${storeIn ? String(storeIn) : ''}</td>
+              <td>${row["CUSTOMER NAME"] || ''}</td>
+              <td>${row["ROUTE"] || ''}</td>
+            `;
+            tbody.appendChild(tr);
+          }
+        });
+      } catch (err) {
+        console.error('Fetch error:', err);
+      }
+    }
+
+    fetchData();
+    setInterval(fetchData, 30000); // Refresh every 30 seconds
+  </script>
+</body>
+</html>
