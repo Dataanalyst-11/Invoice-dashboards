@@ -22,36 +22,47 @@
   </table>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
+  const displayedInvoices = new Set();
 
-    async function fetchData() {
-      try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        const tbody = document.getElementById('table-body');
-        tbody.innerHTML = '';
+  async function fetchData() {
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      const tbody = document.getElementById('table-body');
 
-        [...data].reverse().forEach(row => {
-          const confirmationOut = row["CONFIRMATION TIME OUT"];
-          const rider = row["RIDER"];
-          if (confirmationOut && rider) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${row["INVOICE NUMBER"] || ''}</td>
-              <td>${row["CUSTOMER NAME"] || ''}</td>
-              <td>${row["ROUTE"] || ''}</td>
-              <td>${rider}</td>
-            `;
-            tbody.appendChild(tr);
-          }
-        });
-      } catch (err) {
-        console.error('Fetch failed:', err);
-      }
+      // Filter invoices that are confirmed and assigned to a rider
+      const archived = data.filter(row =>
+        row["CONFIRMATION TIME OUT"] && row["RIDER"]
+      );
+
+      // Newest invoices typically come last, so reverse to loop from newest
+      archived.reverse();
+
+      archived.forEach(row => {
+        const invoiceNumber = row["INVOICE NUMBER"];
+        if (!displayedInvoices.has(invoiceNumber)) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${invoiceNumber || ''}</td>
+            <td>${row["CUSTOMER NAME"] || ''}</td>
+            <td>${row["ROUTE"] || ''}</td>
+            <td>${row["RIDER"] || ''}</td>
+          `;
+          // Add new row to the top
+          tbody.insertBefore(tr, tbody.firstChild);
+          displayedInvoices.add(invoiceNumber);
+        }
+      });
+
+    } catch (err) {
+      console.error("Error fetching data:", err);
     }
+  }
 
-    fetchData();
-    setInterval(fetchData, 30000); // refresh every 30 seconds
-  </script>
+  fetchData();
+  setInterval(fetchData, 30000); // Refresh every 30 seconds
+</script>
+
 </body>
 </html>
