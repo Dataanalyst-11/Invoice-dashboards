@@ -21,36 +21,49 @@
     <tbody id="table-body"></tbody>
   </table>
 
-  <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
+<script>
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
+  const alreadyDisplayed = new Set();
 
-    async function fetchData() {
-      try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        const tbody = document.getElementById('table-body');
-        tbody.innerHTML = '';
+  async function fetchData() {
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      const tbody = document.getElementById('table-body');
 
-        data.forEach(row => {
-          const confirmationOut = row["CONFIRMATION TIME OUT"];
-          const rider = row["RIDER"];
-          if (confirmationOut && !rider) {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${row["INVOICE NUMBER"] || ''}</td>
-              <td>${row["CUSTOMER NAME"] || ''}</td>
-              <td>${row["ROUTE"] || ''}</td>
-            `;
+      // Loop newest first (assuming API returns oldest to newest)
+      data.reverse();
+
+      data.forEach(row => {
+        const confirmationOut = row["CONFIRMATION TIME OUT"];
+        const rider = row["RIDER"];
+        const invoice = row["INVOICE NUMBER"] || '';
+
+        if (confirmationOut && !rider && !alreadyDisplayed.has(invoice)) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${invoice}</td>
+            <td>${row["CUSTOMER NAME"] || ''}</td>
+            <td>${row["ROUTE"] || ''}</td>
+          `;
+          // Add new entries at the top
+          if (tbody.firstChild) {
+            tbody.insertBefore(tr, tbody.firstChild);
+          } else {
             tbody.appendChild(tr);
           }
-        });
-      } catch (err) {
-        console.error('Fetch failed:', err);
-      }
-    }
 
-    fetchData();
-    setInterval(fetchData, 30000); // refresh every 30 seconds
-  </script>
+          alreadyDisplayed.add(invoice);
+        }
+      });
+    } catch (err) {
+      console.error('Fetch failed:', err);
+    }
+  }
+
+  fetchData();
+  setInterval(fetchData, 30000); // refresh every 30 seconds
+</script>
+
 </body>
 </html>
