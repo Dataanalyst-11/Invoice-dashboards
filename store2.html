@@ -8,45 +8,64 @@
     body {
       font-family: Arial, sans-serif;
       background: #fefefe;
-      padding: 20px;
+      padding: 0;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
     }
+
     h1 {
       background: #007bff;
       color: white;
       padding: 12px;
-      border-radius: 8px;
+      margin: 0;
       text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
+
+    .table-container {
+      height: calc(100vh - 60px);
+      overflow-y: auto;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
       background: white;
     }
+
     th, td {
       padding: 10px;
       border: 1px solid #ddd;
       text-align: left;
     }
-    th {
+
+    thead th {
       background-color: #f1f1f1;
+      position: sticky;
+      top: 0;
+      z-index: 5;
     }
   </style>
 </head>
 <body>
   <h1>🟡 In Store Invoices</h1>
-  <table>
-    <thead>
-      <tr>
-        <th>Invoice Number</th>
-        <th>Store Executive</th>
-        <th>Store Time In</th>
-        <th>Customer Name</th>
-        <th>Route</th>
-      </tr>
-    </thead>
-    <tbody id="table-body"></tbody>
-  </table>
+  <div class="table-container" id="scrollArea">
+    <table>
+      <thead>
+        <tr>
+          <th>Invoice Number</th>
+          <th>Store Executive</th>
+          <th>Store Time In</th>
+          <th>Customer Name</th>
+          <th>Route</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
@@ -54,7 +73,7 @@
 
     function formatDateTime(input) {
       const date = new Date(input);
-      if (isNaN(date.getTime())) return input; // fallback if invalid date
+      if (isNaN(date.getTime())) return input;
       const pad = n => n.toString().padStart(2, '0');
       return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     }
@@ -65,7 +84,6 @@
         const data = await res.json();
         const tbody = document.getElementById('table-body');
 
-        // Show newest first
         data.reverse();
 
         data.forEach(row => {
@@ -92,7 +110,40 @@
     }
 
     fetchData();
-    setInterval(fetchData, 30000); // Refresh every 30 seconds
+    setInterval(fetchData, 30000); // Refresh every 30 sec
+
+    // Auto scroll logic
+    let scrollTimer;
+    let direction = 'down';
+
+    function startAutoScroll() {
+      const scrollArea = document.getElementById('scrollArea');
+      const speed = 0.5; // px per frame
+      const delay = 30; // ms between frames
+
+      scrollTimer = setInterval(() => {
+        if (direction === 'down') {
+          if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight - 1) {
+            scrollArea.scrollTop += speed;
+          } else {
+            clearInterval(scrollTimer);
+            direction = 'up';
+            setTimeout(startAutoScroll, 2000); // pause at bottom
+          }
+        } else {
+          if (scrollArea.scrollTop > 0) {
+            scrollArea.scrollTop -= speed;
+          } else {
+            clearInterval(scrollTimer);
+            direction = 'down';
+            setTimeout(startAutoScroll, 15000); // wait 15 sec at top
+          }
+        }
+      }, delay);
+    }
+
+    // Start the scroll cycle after 1 minutes
+    setTimeout(startAutoScroll, 15000);
   </script>
 </body>
 </html>
