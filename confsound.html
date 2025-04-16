@@ -105,15 +105,24 @@
           }
         });
 
-        if (newInvoices.length > 0) {
-          const latest = newInvoices[newInvoices.length - 1];
-          const beep = document.getElementById('beep');
-          beep.play();
-          setTimeout(() => {
-            const msg = new SpeechSynthesisUtterance(`Invoice number ${latest} has entered confirmation`);
-            speechSynthesis.speak(msg);
-          }, 1000);
-        }
+     if (newInvoices.length > 0) {
+  const latest = newInvoices[newInvoices.length - 1];
+  const beep = document.getElementById('beep');
+  beep.play();
+
+  setTimeout(() => {
+    const msg = new SpeechSynthesisUtterance(`Invoice number ${latest} has entered confirmation`);
+    const voices = speechSynthesis.getVoices();
+
+    // Choose an English voice, fallback to first available
+    if (voices.length > 0) {
+      msg.voice = voices.find(v => v.lang.includes('en')) || voices[0];
+    }
+
+    speechSynthesis.speak(msg);
+  }, 1000);
+}
+
       } catch (err) {
         console.error('Fetch failed:', err);
       }
