@@ -5,65 +5,138 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dispatched Invoices</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #fff5f5; padding: 20px; }
-    h1 { background: #dc3545; color: white; padding: 12px; border-radius: 8px; text-align: center; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
-    th { background-color: #f8d7da; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #fff5f5;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .table-container {
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: white;
+    }
+
+    h1 {
+      background: #dc3545;
+      color: white;
+      padding: 12px;
+      margin: 0;
+      text-align: center;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    thead th {
+      background-color: #f8d7da;
+    }
   </style>
 </head>
 <body>
-  <h1>🚚 Invoices at Dispatch</h1>
-  <table>
-    <thead>
-      <tr><th>Invoice Number</th><th>Customer Name</th><th>Route</th></tr>
-    </thead>
-    <tbody id="table-body"></tbody>
-  </table>
+  <div class="table-container" id="scrollArea">
+    <div class="sticky-header">
+      <h1>🚚 Invoices at Dispatch</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>Invoice Number</th>
+            <th>Customer Name</th>
+            <th>Route</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+    <table>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
 
-<script>
-  const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
-  const alreadyDisplayed = new Set();
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
+    const alreadyDisplayed = new Set();
 
-  async function fetchData() {
-    try {
-      const res = await fetch(API_URL);
-      const data = await res.json();
-      const tbody = document.getElementById('table-body');
+    async function fetchData() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const tbody = document.getElementById('table-body');
 
-      // Loop newest first (assuming API returns oldest to newest)
-      data.reverse();
+        data.reverse();
 
-      data.forEach(row => {
-        const confirmationOut = row["CONFIRMATION TIME OUT"];
-        const rider = row["RIDER"];
-        const invoice = row["INVOICE NUMBER"] || '';
+        data.forEach(row => {
+          const confirmationOut = row["CONFIRMATION TIME OUT"];
+          const rider = row["RIDER"];
+          const invoice = row["INVOICE NUMBER"] || '';
 
-        if (confirmationOut && !rider && !alreadyDisplayed.has(invoice)) {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${invoice}</td>
-            <td>${row["CUSTOMER NAME"] || ''}</td>
-            <td>${row["ROUTE"] || ''}</td>
-          `;
-          // Add new entries at the top
-          if (tbody.firstChild) {
+          if (confirmationOut && !rider && !alreadyDisplayed.has(invoice)) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${invoice}</td>
+              <td>${row["CUSTOMER NAME"] || ''}</td>
+              <td>${row["ROUTE"] || ''}</td>
+            `;
             tbody.insertBefore(tr, tbody.firstChild);
-          } else {
-            tbody.appendChild(tr);
+            alreadyDisplayed.add(invoice);
           }
-
-          alreadyDisplayed.add(invoice);
-        }
-      });
-    } catch (err) {
-      console.error('Fetch failed:', err);
+        });
+      } catch (err) {
+        console.error('Fetch failed:', err);
+      }
     }
-  }
 
-  fetchData();
-  setInterval(fetchData, 30000); // refresh every 30 seconds
-</script>
+    fetchData();
+    setInterval(fetchData, 30000); // refresh every 30 seconds
 
+    // Auto Scroll Logic
+    let scrollTimer;
+    let direction = 'down';
+
+    function startAutoScroll() {
+      const scrollArea = document.getElementById('scrollArea');
+      const speed = 0.5; // px per frame
+      const delay = 30; // ms between frames
+
+      scrollTimer = setInterval(() => {
+        if (direction === 'down') {
+          if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight - 1) {
+            scrollArea.scrollTop += speed;
+          } else {
+            clearInterval(scrollTimer);
+            direction = 'up';
+            setTimeout(startAutoScroll, 2000); // pause at bottom
+          }
+        } else {
+          if (scrollArea.scrollTop > 0) {
+            scrollArea.scrollTop -= speed;
+          } else {
+            clearInterval(scrollTimer);
+            direction = 'down';
+            setTimeout(startAutoScroll, 15000); // pause at top
+          }
+        }
+      }, delay);
+    }
+
+    setTimeout(startAutoScroll, 15000); // Start scroll cycle after 2 min
+  </script>
 </body>
 </html>
