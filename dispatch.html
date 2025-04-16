@@ -5,25 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dispatched Invoices</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, sans-serif;
       background: #fff5f5;
       margin: 0;
-      padding: 0;
       height: 100vh;
       overflow: hidden;
-    }
-
-    .table-container {
-      height: 100vh;
-      overflow-y: auto;
-    }
-
-    .sticky-header {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: white;
     }
 
     h1 {
@@ -32,6 +23,15 @@
       padding: 12px;
       margin: 0;
       text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .table-container {
+      height: calc(100vh - 60px);
+      overflow-y: auto;
+      padding: 20px;
     }
 
     table {
@@ -48,31 +48,30 @@
 
     thead th {
       background-color: #f8d7da;
+      position: sticky;
+      top: 0;
+      z-index: 50;
     }
   </style>
 </head>
 <body>
+  <h1>🚚 Invoices at Dispatch</h1>
   <div class="table-container" id="scrollArea">
-    <div class="sticky-header">
-      <h1>🚚 Invoices at Dispatch</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>Invoice Number</th>
-            <th>Customer Name</th>
-            <th>Route</th>
-          </tr>
-        </thead>
-      </table>
-    </div>
     <table>
+      <thead>
+        <tr>
+          <th>Invoice Number</th>
+          <th>Customer Name</th>
+          <th>Route</th>
+        </tr>
+      </thead>
       <tbody id="table-body"></tbody>
     </table>
   </div>
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
-    const alreadyDisplayed = new Set();
+    const displayed = new Set();
 
     async function fetchData() {
       try {
@@ -87,7 +86,7 @@
           const rider = row["RIDER"];
           const invoice = row["INVOICE NUMBER"] || '';
 
-          if (confirmationOut && !rider && !alreadyDisplayed.has(invoice)) {
+          if (confirmationOut && !rider && !displayed.has(invoice)) {
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td>${invoice}</td>
@@ -95,7 +94,7 @@
               <td>${row["ROUTE"] || ''}</td>
             `;
             tbody.insertBefore(tr, tbody.firstChild);
-            alreadyDisplayed.add(invoice);
+            displayed.add(invoice);
           }
         });
       } catch (err) {
@@ -104,39 +103,43 @@
     }
 
     fetchData();
-    setInterval(fetchData, 30000); // refresh every 30 seconds
+    setInterval(fetchData, 30000); // Refresh every 30 seconds
 
-    // Auto Scroll Logic
-    let scrollTimer;
+    // Smooth Auto Scroll
+    const scrollArea = document.getElementById('scrollArea');
     let direction = 'down';
 
-    function startAutoScroll() {
-      const scrollArea = document.getElementById('scrollArea');
-      const speed = 0.5; // px per frame
-      const delay = 30; // ms between frames
+    function smoothScroll() {
+      const speed = 1;
 
-      scrollTimer = setInterval(() => {
+      function step() {
         if (direction === 'down') {
-          if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight - 1) {
+          if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight) {
             scrollArea.scrollTop += speed;
+            requestAnimationFrame(step);
           } else {
-            clearInterval(scrollTimer);
             direction = 'up';
-            setTimeout(startAutoScroll, 2000); // pause at bottom
+            setTimeout(() => requestAnimationFrame(smoothScroll), 2000); // Pause at bottom
           }
         } else {
           if (scrollArea.scrollTop > 0) {
             scrollArea.scrollTop -= speed;
+            requestAnimationFrame(step);
           } else {
-            clearInterval(scrollTimer);
             direction = 'down';
-            setTimeout(startAutoScroll, 15000); // pause at top
+            setTimeout(() => requestAnimationFrame(smoothScroll), 15000); // Pause at top
           }
         }
-      }, delay);
+      }
+
+      step();
     }
 
-    setTimeout(startAutoScroll, 15000); // Start scroll cycle after 2 min
+    // Touch trigger for kiosk environments + start scrolling
+    window.addEventListener('load', () => {
+      document.dispatchEvent(new Event('touchstart'));
+      setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
+    });
   </script>
 </body>
 </html>
