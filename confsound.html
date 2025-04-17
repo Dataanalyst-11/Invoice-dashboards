@@ -41,17 +41,17 @@
       z-index: 10;
     }
     tr.highlight-green {
-      background-color: #006400; /* Amazon green */
+      background-color: #006400;
       color: white;
       font-weight: bold;
     }
     tr.highlight-yellow {
-      background-color: #FFD700; /* Yellow */
+      background-color: #FFD700;
       color: black;
       font-weight: bold;
     }
     tr.highlight-red {
-      background-color: #8B0000; /* Blood red */
+      background-color: #8B0000;
       color: white;
       font-weight: bold;
     }
@@ -83,7 +83,6 @@
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
-    const previouslyAnnounced = new Set();
     const liveTimers = {};
 
     function minutesPassedSince(dateStr) {
@@ -111,9 +110,11 @@
         const res = await fetch(API_URL);
         const data = await res.json();
         const tbody = document.getElementById('table-body');
-        const newInvoices = [];
+        tbody.innerHTML = ''; // Clear existing rows
 
         data.reverse(); // newest first
+
+        const newInvoices = [];
 
         data.forEach(row => {
           const storeOut = row["Store Time Out"];
@@ -121,7 +122,8 @@
           const confirmOut = row["CONFIRMATION TIME OUT"];
           const invoice = row["INVOICE NUMBER"] || '';
 
-          if (storeOut && confirmIn && !confirmOut ) {
+          // Apply STRICT filter condition
+          if (storeOut && confirmIn && !confirmOut) {
             const minutesPassed = minutesPassedSince(confirmIn);
             const formattedTime = formatDateTime(confirmIn);
             const invoiceId = invoice.replace(/\s/g, '');
@@ -148,27 +150,17 @@
               <td>${row["ROUTE"] || ''}</td>
             `;
 
-            if (tbody.firstChild) {
-              tbody.insertBefore(tr, tbody.firstChild);
-            } else {
-              tbody.appendChild(tr);
-            }
-
+            tbody.appendChild(tr);
             liveTimers[invoiceId] = new Date(confirmIn);
             newInvoices.push(invoice);
-            previouslyAnnounced.add(invoice);
           }
         });
 
         if (newInvoices.length > 0) {
-          const latest = newInvoices[newInvoices.length - 1];
           const beep = document.getElementById('beep');
           beep.play();
-          setTimeout(() => {
-            const msg = new SpeechSynthesisUtterance(`Invoice number ${latest} has entered confirmation`);
-            speechSynthesis.speak(msg);
-          }, 1000);
         }
+
       } catch (err) {
         console.error('Fetch failed:', err);
       }
@@ -199,7 +191,7 @@
             requestAnimationFrame(step);
           } else {
             direction = 'up';
-            setTimeout(() => requestAnimationFrame(smoothScroll), 2000); // Pause at bottom
+            setTimeout(() => requestAnimationFrame(smoothScroll), 2000);
           }
         } else {
           if (scrollArea.scrollTop > 0) {
@@ -207,22 +199,20 @@
             requestAnimationFrame(step);
           } else {
             direction = 'down';
-            setTimeout(() => requestAnimationFrame(smoothScroll), 15000); // Pause at top
+            setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
           }
         }
       }
       step();
     }
 
-    // Trigger touch + scrolling after page loads
     window.addEventListener('load', () => {
       document.dispatchEvent(new Event('touchstart'));
       setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
     });
 
-    // Fetch data initially and every 30 seconds
     fetchData();
-    setInterval(fetchData, 30000);
+    setInterval(fetchData, 30000); // Refresh every 30 seconds
   </script>
 </body>
 </html>
