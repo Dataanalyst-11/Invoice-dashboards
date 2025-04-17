@@ -121,7 +121,7 @@
           const confirmOut = row["CONFIRMATION TIME OUT"];
           const invoice = row["INVOICE NUMBER"] || '';
 
-          if (storeOut && confirmIn && !confirmOut && !previouslyAnnounced.has(invoice)) {
+          if (storeOut && confirmIn && !confirmOut ) {
             const minutesPassed = minutesPassedSince(confirmIn);
             const formattedTime = formatDateTime(confirmIn);
             const invoiceId = invoice.replace(/\s/g, '');
