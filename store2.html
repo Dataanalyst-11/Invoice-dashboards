@@ -52,6 +52,29 @@
       top: 0;
       z-index: 50;
     }
+
+    tr.highlight-green {
+      background-color: #006400;
+      color: white;
+      font-weight: bold;
+    }
+
+    tr.highlight-yellow {
+      background-color: #FFD700;
+      color: black;
+      font-weight: bold;
+    }
+
+    tr.highlight-red {
+      background-color: #8B0000;
+      color: white;
+      font-weight: bold;
+    }
+
+    small {
+      font-size: 0.85em;
+      color: #f0f0f0;
+    }
   </style>
 </head>
 <body>
@@ -73,7 +96,7 @@
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
-    const shownInvoices = new Set();
+    const liveTimers = {};
 
     function formatDateTime(input) {
       const date = new Date(input);
@@ -82,30 +105,58 @@
       return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     }
 
+    function formatDuration(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSec / 60);
+      const seconds = totalSec % 60;
+      return `${minutes} min ${seconds} sec`;
+    }
+
     async function fetchData() {
       try {
         const res = await fetch(API_URL);
         const data = await res.json();
         const tbody = document.getElementById('table-body');
 
-        data.reverse();
+        // Clear table and timers on each refresh
+        tbody.innerHTML = '';
+        Object.keys(liveTimers).forEach(key => delete liveTimers[key]);
 
-        data.forEach(row => {
+        data.reverse().forEach(row => {
           const storeIn = row["Store Time In"];
           const storeOut = row["Store Time Out"];
           const invoice = row["INVOICE NUMBER"] || '';
 
-          if (storeIn && !storeOut && !shownInvoices.has(invoice)) {
+          if (storeIn && !storeOut) {
+            const timeIn = new Date(storeIn);
+            const now = new Date();
+            const minutesPassed = (now - timeIn) / (1000 * 60);
+            const invoiceId = invoice.replace(/\s/g, '');
+            const timerId = `timer-${invoiceId}`;
+
             const tr = document.createElement('tr');
+
+            if (minutesPassed > 20) {
+              tr.classList.add('highlight-red');
+            } else if (minutesPassed > 10) {
+              tr.classList.add('highlight-yellow');
+            } else {
+              tr.classList.add('highlight-green');
+            }
+
             tr.innerHTML = `
               <td>${invoice}</td>
               <td>${row["STORE EXECUTIVE"] || ''}</td>
-              <td>${formatDateTime(storeIn)}</td>
+              <td>
+                ${formatDateTime(storeIn)}<br>
+                <small id="${timerId}">⏱️ In Store for: calculating...</small>
+              </td>
               <td>${row["CUSTOMER NAME"] || ''}</td>
               <td>${row["ROUTE"] || ''}</td>
             `;
-            tbody.insertBefore(tr, tbody.firstChild);
-            shownInvoices.add(invoice);
+
+            tbody.appendChild(tr);
+            liveTimers[invoiceId] = timeIn;
           }
         });
       } catch (err) {
@@ -115,6 +166,18 @@
 
     fetchData();
     setInterval(fetchData, 30000); // Refresh every 30 sec
+
+    // Update countdown timers
+    setInterval(() => {
+      const now = new Date();
+      for (const [invoiceId, startTime] of Object.entries(liveTimers)) {
+        const timerElem = document.getElementById(`timer-${invoiceId}`);
+        if (timerElem) {
+          const elapsed = now - startTime;
+          timerElem.textContent = `⏱️ In Store for: ${formatDuration(elapsed)}`;
+        }
+      }
+    }, 1000);
 
     // Smooth Auto Scroll
     const scrollArea = document.getElementById('scrollArea');
