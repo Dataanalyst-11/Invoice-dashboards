@@ -112,7 +112,7 @@
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = ''; // Clear existing rows
 
-        data.reverse(); // newest first
+       data.sort((a, b) => new Date(b["CONFIRMATION TIME IN"]) - new Date(a["CONFIRMATION TIME IN"])); // newest first
 
         const newInvoices = [];
 
