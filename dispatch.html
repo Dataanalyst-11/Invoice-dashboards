@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dispatched Invoices</title>
+  <title>Dispatched - Invoice Dashboard</title>
   <style>
     * {
       box-sizing: border-box;
@@ -11,7 +11,7 @@
 
     body {
       font-family: Arial, sans-serif;
-      background: #fff5f5;
+      background: #fefefe;
       margin: 0;
       height: 100vh;
       overflow: hidden;
@@ -47,15 +47,38 @@
     }
 
     thead th {
-      background-color: #f8d7da;
+      background-color: #f1f1f1;
       position: sticky;
       top: 0;
       z-index: 50;
     }
+
+    tr.highlight-green {
+      background-color: #006400;
+      color: white;
+      font-weight: bold;
+    }
+
+    tr.highlight-yellow {
+      background-color: #FFD700;
+      color: black;
+      font-weight: bold;
+    }
+
+    tr.highlight-red {
+      background-color: #8B0000;
+      color: white;
+      font-weight: bold;
+    }
+
+    small {
+      font-size: 0.85em;
+      color: #f0f0f0;
+    }
   </style>
 </head>
 <body>
-  <h1>🚚 Invoices at Dispatch</h1>
+  <h1>🚚 Dispatched Invoices</h1>
   <div class="table-container" id="scrollArea">
     <table>
       <thead>
@@ -63,6 +86,7 @@
           <th>Invoice Number</th>
           <th>Customer Name</th>
           <th>Route</th>
+          <th>Confirmation Time Out</th>
         </tr>
       </thead>
       <tbody id="table-body"></tbody>
@@ -71,7 +95,21 @@
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
-    const displayed = new Set();
+    const liveTimers = {};
+
+    function formatDateTime(input) {
+      const date = new Date(input);
+      if (isNaN(date.getTime())) return input;
+      const pad = n => n.toString().padStart(2, '0');
+      return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    function formatDuration(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSec / 60);
+      const seconds = totalSec % 60;
+      return `${minutes} min ${seconds} sec`;
+    }
 
     async function fetchData() {
       try {
@@ -79,31 +117,65 @@
         const data = await res.json();
         const tbody = document.getElementById('table-body');
 
-        data.reverse();
+        // Clear previous content
+        tbody.innerHTML = '';
+        Object.keys(liveTimers).forEach(key => delete liveTimers[key]);
 
-        data.forEach(row => {
+        data.reverse().forEach(row => {
           const confirmationOut = row["CONFIRMATION TIME OUT"];
           const rider = row["RIDER"];
           const invoice = row["INVOICE NUMBER"] || '';
 
-          if (confirmationOut && !rider && !displayed.has(invoice)) {
+          if (confirmationOut && !rider) {
+            const timeOut = new Date(confirmationOut);
+            const now = new Date();
+            const minutesPassed = (now - timeOut) / (1000 * 60);
+            const invoiceId = invoice.replace(/\s/g, '');
+            const timerId = `timer-${invoiceId}`;
+
             const tr = document.createElement('tr');
+
+            if (minutesPassed > 20) {
+              tr.classList.add('highlight-red');
+            } else if (minutesPassed > 10) {
+              tr.classList.add('highlight-yellow');
+            } else {
+              tr.classList.add('highlight-green');
+            }
+
             tr.innerHTML = `
               <td>${invoice}</td>
               <td>${row["CUSTOMER NAME"] || ''}</td>
               <td>${row["ROUTE"] || ''}</td>
+              <td>
+                ${formatDateTime(confirmationOut)}<br>
+                <small id="${timerId}">⏱️ Waiting: calculating...</small>
+              </td>
             `;
-            tbody.insertBefore(tr, tbody.firstChild);
-            displayed.add(invoice);
+
+            tbody.appendChild(tr);
+            liveTimers[invoiceId] = timeOut;
           }
         });
       } catch (err) {
-        console.error('Fetch failed:', err);
+        console.error('Fetch error:', err);
       }
     }
 
     fetchData();
-    setInterval(fetchData, 30000); // Refresh every 30 seconds
+    setInterval(fetchData, 30000); // Refresh every 30 sec
+
+    // Update countdown timers
+    setInterval(() => {
+      const now = new Date();
+      for (const [invoiceId, startTime] of Object.entries(liveTimers)) {
+        const timerElem = document.getElementById(`timer-${invoiceId}`);
+        if (timerElem) {
+          const elapsed = now - startTime;
+          timerElem.textContent = `⏱️ Waiting: ${formatDuration(elapsed)}`;
+        }
+      }
+    }, 1000);
 
     // Smooth Auto Scroll
     const scrollArea = document.getElementById('scrollArea');
@@ -135,7 +207,6 @@
       step();
     }
 
-    // Touch trigger for kiosk environments + start scrolling
     window.addEventListener('load', () => {
       document.dispatchEvent(new Event('touchstart'));
       setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
