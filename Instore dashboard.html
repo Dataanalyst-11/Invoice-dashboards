@@ -59,11 +59,25 @@
       font-size: 0.85em;
       color: #f0f0f0;
     }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 8px;
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
   <h1>🔵 In Confirmation Invoices</h1>
-  
+
+  <div style="text-align:center;">
+    <button onclick="testVoice()">🔊 Test Voice</button>
+  </div>
+
   <div id="scrollArea">
     <table>
       <thead>
@@ -82,7 +96,7 @@
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
     const liveTimers = {};
-    let lastSeenInvoices = new Set();
+    let previousInvoiceIds = new Set();
 
     function minutesPassedSince(dateStr) {
       const now = new Date();
@@ -109,10 +123,11 @@
         const res = await fetch(API_URL);
         const data = await res.json();
         const tbody = document.getElementById('table-body');
-        tbody.innerHTML = '';
+        tbody.innerHTML = ''; // Clear existing rows
 
-        data.sort((a, b) => new Date(b["CONFIRMATION TIME IN"]) - new Date(a["CONFIRMATION TIME IN"]));
+        data.sort((a, b) => new Date(b["CONFIRMATION TIME IN"]) - new Date(a["CONFIRMATION TIME IN"])); // newest first
 
+        const currentInvoiceIds = new Set();
         const newInvoices = [];
 
         data.forEach(row => {
@@ -150,16 +165,18 @@
 
             tbody.appendChild(tr);
             liveTimers[invoiceId] = new Date(confirmIn);
+            currentInvoiceIds.add(invoiceId);
 
-            if (!lastSeenInvoices.has(invoice)) {
+            if (!previousInvoiceIds.has(invoiceId)) {
               newInvoices.push(invoice);
-              lastSeenInvoices.add(invoice);
             }
           }
         });
 
+        previousInvoiceIds = currentInvoiceIds;
+
         if (newInvoices.length > 0) {
-          announceNewInvoices(newInvoices);
+          speakInvoices(newInvoices);
         }
 
       } catch (err) {
@@ -167,13 +184,22 @@
       }
     }
 
-    function announceNewInvoices(invoices) {
-      const combinedText = invoices.map(inv => `New invoice ${inv} added to confirmation`).join('. ');
-      const utterance = new SpeechSynthesisUtterance(combinedText);
-      window.speechSynthesis.speak(utterance);
+    function speakInvoices(invoices) {
+      window.speechSynthesis.resume();
+      invoices.forEach((invoice, i) => {
+        const utterance = new SpeechSynthesisUtterance(`New invoice in confirmation: ${invoice}`);
+        utterance.rate = 1;
+        setTimeout(() => window.speechSynthesis.speak(utterance), i * 2000);
+      });
     }
 
-    // Timer update
+    function testVoice() {
+      window.speechSynthesis.resume();
+      const testUtterance = new SpeechSynthesisUtterance("This is a test of the voice alert system.");
+      window.speechSynthesis.speak(testUtterance);
+    }
+
+    // Update countdown timers every second
     setInterval(() => {
       const now = new Date();
       for (const [invoiceId, startTime] of Object.entries(liveTimers)) {
@@ -185,9 +211,10 @@
       }
     }, 1000);
 
-    // Auto-scroll
+    // Smooth auto-scroll
     const scrollArea = document.getElementById('scrollArea');
     let direction = 'down';
+
     function smoothScroll() {
       const speed = 1;
       function step() {
@@ -215,24 +242,10 @@
     window.addEventListener('load', () => {
       document.dispatchEvent(new Event('touchstart'));
       setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
-
-      // Attempt to trigger voice automatically after a short delay
-      setTimeout(() => {
-        window.speechSynthesis.resume();
-        const utterance = new SpeechSynthesisUtterance("Voice system ready");
-        window.speechSynthesis.speak(utterance);
-      }, 3000);
     });
 
-    // Unlock voice on first interaction
-    document.addEventListener('click', () => {
-      window.speechSynthesis.resume();
-      const utterance = new SpeechSynthesisUtterance("Voice alerts activated");
-      window.speechSynthesis.speak(utterance);
-    }, { once: true });
-
     fetchData();
-    setInterval(fetchData, 15000);
+    setInterval(fetchData, 15000); // Refresh every 15 seconds
   </script>
 </body>
 </html>
