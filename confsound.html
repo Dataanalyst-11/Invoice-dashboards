@@ -19,6 +19,13 @@
       text-align: center;
       margin: 0;
     }
+    #invoiceCount {
+      text-align: center;
+      font-size: 1.2em;
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+    }
     #scrollArea {
       max-height: 90vh;
       overflow-y: auto;
@@ -63,7 +70,8 @@
 </head>
 <body>
   <h1>🔵 In Confirmation Invoices</h1>
-  
+  <div id="invoiceCount">Loading invoice count...</div>
+
   <div id="scrollArea">
     <table>
       <thead>
@@ -111,8 +119,9 @@
         const data = await res.json();
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = ''; // Clear existing rows
+        let invoiceCount = 0;
 
-       data.sort((a, b) => new Date(b["CONFIRMATION TIME IN"]) - new Date(a["CONFIRMATION TIME IN"])); // newest first
+        data.sort((a, b) => new Date(b["CONFIRMATION TIME IN"]) - new Date(a["CONFIRMATION TIME IN"])); // newest first
 
         const newInvoices = [];
 
@@ -122,7 +131,6 @@
           const confirmOut = row["CONFIRMATION TIME OUT"];
           const invoice = row["INVOICE NUMBER"] || '';
 
-          // Apply STRICT filter condition
           if (storeOut && confirmIn && !confirmOut) {
             const minutesPassed = minutesPassedSince(confirmIn);
             const formattedTime = formatDateTime(confirmIn);
@@ -153,8 +161,11 @@
             tbody.appendChild(tr);
             liveTimers[invoiceId] = new Date(confirmIn);
             newInvoices.push(invoice);
+            invoiceCount++;
           }
         });
+
+        document.getElementById('invoiceCount').textContent = `🔢 Total Invoices in Confirmation: ${invoiceCount}`;
 
         if (newInvoices.length > 0) {
           const beep = document.getElementById('beep');
@@ -163,6 +174,7 @@
 
       } catch (err) {
         console.error('Fetch failed:', err);
+        document.getElementById('invoiceCount').textContent = `⚠️ Failed to load invoices.`;
       }
     }
 
@@ -212,7 +224,7 @@
     });
 
     fetchData();
-    setInterval(fetchData, 15000); // Refresh every 30 seconds
+    setInterval(fetchData, 15000); // Refresh every 15 seconds
   </script>
 </body>
 </html>
