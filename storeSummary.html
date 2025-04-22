@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Store Executive Performance Summary</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #fefefe;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #007bff;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .summary {
+      padding-top: 4px;
+      font-size: 1rem;
+      font-weight: bold;
+    }
+
+    .table-container {
+      height: calc(100vh - 92px); /* height of .header */
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    thead th {
+      background-color: #f1f1f1;
+      position: sticky;
+      top: 0; /* Stick directly to top */
+      z-index: 100;
+    }
+
+    tr.highlight {
+      font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 Store Executive Performance Summary</h1>
+    <div class="summary" id="summary-row">Loading summary...</div>
+  </div>
+
+  <div class="table-container" id="scrollArea">
+    <table>
+      <thead>
+        <tr>
+          <th>Store Executive</th>
+          <th>Total Invoices</th>
+          <th>Performance (%)</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
+
+    async function fetchData() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+
+        const execMap = {};
+        let printedCount = 0;
+        let trackedCount = 0;
+
+        data.forEach(row => {
+          const exec = row["STORE EXECUTIVE"];
+          const printed = row["PRINTED TIME"];
+          const storeTimeOut = row["Store Time Out"];
+
+          if (printed) printedCount++;
+          if (storeTimeOut) trackedCount++;
+
+          if (exec) {
+            execMap[exec] = (execMap[exec] || 0) + 1;
+          }
+        });
+
+        const execList = Object.entries(execMap)
+          .map(([name, count]) => ({
+            name,
+            count,
+            percentage: ((count / 100) * 100).toFixed(2)
+          }))
+          .sort((a, b) => b.percentage - a.percentage);
+
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+        execList.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${item.name}</td>
+            <td>${item.count}</td>
+            <td>${item.percentage}%</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById('summary-row').textContent = 
+          `🧾 Total Printed Invoices: ${printedCount} invoices | ✅ Total Tracked: ${trackedCount} invoices`;
+
+      } catch (err) {
+        console.error('Fetch error:', err);
+        document.getElementById('summary-row').textContent = 'Error loading summary.';
+      }
+    }
+
+    fetchData();
+    setInterval(fetchData, 30000);
+
+    // Smooth Auto Scroll with Pause
+    const scrollArea = document.getElementById('scrollArea');
+    let scrollDirection = 'down';
+    const scrollSpeed = 1;
+    const scrollPause = 3000;
+
+    function scrollStep() {
+      if (scrollDirection === 'down') {
+        if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight) {
+          scrollArea.scrollTop += scrollSpeed;
+          requestAnimationFrame(scrollStep);
+        } else {
+          scrollDirection = 'up';
+          setTimeout(() => requestAnimationFrame(scrollStep), scrollPause);
+        }
+      } else {
+        if (scrollArea.scrollTop > 0) {
+          scrollArea.scrollTop -= scrollSpeed;
+          requestAnimationFrame(scrollStep);
+        } else {
+          scrollDirection = 'down';
+          setTimeout(() => requestAnimationFrame(scrollStep), scrollPause);
+        }
+      }
+    }
+
+    window.addEventListener('load', () => {
+      setTimeout(() => requestAnimationFrame(scrollStep), 2000);
+    });
+  </script>
+</body>
+</html>
