@@ -11,7 +11,7 @@
 
     body {
       font-family: Arial, sans-serif;
-      background: #fefefe;
+      background: #ffffff;
       margin: 0;
       height: 100vh;
       overflow: hidden;
@@ -36,7 +36,7 @@
     }
 
     .table-container {
-      height: calc(100vh - 92px); /* height of .header */
+      height: calc(100vh - 92px);
       overflow-y: auto;
     }
 
@@ -55,16 +55,60 @@
     thead th {
       background-color: #f1f1f1;
       position: sticky;
-      top: 0; /* Stick directly to top */
+      top: 0;
       z-index: 100;
     }
 
-    tr.highlight {
+ tr.low {
+  background-color: #8B0000; /* Blood red */
+  color: white;
+  font-weight: bold;
+}
+
+tr.medium {
+  background-color: #ffd633;
+  font-weight: bold;
+}
+
+tr.high {
+  background-color: #228B22; /* Amazon green */
+  color: white;
+  font-weight: bold;
+}
+
+    tr:nth-child(even):not(.low):not(.medium):not(.high) {
+      background-color: #f9f9f9;
+    }
+
+    .exec-name {
+      display: flex;
+      align-items: center;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: #007bff;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
       font-weight: bold;
     }
 
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
+    .progress-container {
+      background-color: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      height: 8px;
+      margin-top: 4px;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background-color: black;
     }
   </style>
 </head>
@@ -80,7 +124,8 @@
         <tr>
           <th>Store Executive</th>
           <th>Total Invoices</th>
-          <th>Performance (%)</th>
+          <th>Total Value</th>
+          <th>Performance</th>
         </tr>
       </thead>
       <tbody id="table-body"></tbody>
@@ -103,20 +148,26 @@
           const exec = row["STORE EXECUTIVE"];
           const printed = row["PRINTED TIME"];
           const storeTimeOut = row["Store Time Out"];
+          const amount = parseFloat(row["INVOICE AMOUNT"].toString().replace(/,/g, '')) || 0;
 
           if (printed) printedCount++;
           if (storeTimeOut) trackedCount++;
 
           if (exec) {
-            execMap[exec] = (execMap[exec] || 0) + 1;
+            if (!execMap[exec]) {
+              execMap[exec] = { count: 0, totalValue: 0 };
+            }
+            execMap[exec].count += 1;
+            execMap[exec].totalValue += amount;
           }
         });
 
         const execList = Object.entries(execMap)
-          .map(([name, count]) => ({
+          .map(([name, obj]) => ({
             name,
-            count,
-            percentage: ((count / 100) * 100).toFixed(2)
+            count: obj.count,
+            totalValue: obj.totalValue,
+            percentage: ((obj.count / 100) * 100).toFixed(2)
           }))
           .sort((a, b) => b.percentage - a.percentage);
 
@@ -124,16 +175,30 @@
         tbody.innerHTML = '';
         execList.forEach(item => {
           const tr = document.createElement('tr');
+          const perc = parseFloat(item.percentage);
+
+          if (perc <= 50) tr.className = 'low';
+          else if (perc <= 80) tr.className = 'medium';
+          else tr.className = 'high';
+
           tr.innerHTML = `
-            <td>${item.name}</td>
+            <td class="exec-name">
+              <div class="avatar">${getInitials(item.name)}</div>${item.name}
+            </td>
             <td>${item.count}</td>
-            <td>${item.percentage}%</td>
+            <td>KES ${item.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td>
+              <div>${item.percentage}%</div>
+              <div class="progress-container">
+                <div class="progress-bar" style="width: ${perc}%"></div>
+              </div>
+            </td>
           `;
           tbody.appendChild(tr);
         });
 
         document.getElementById('summary-row').textContent = 
-          `🧾 Total Printed Invoices: ${printedCount} invoices | ✅ Total Tracked: ${trackedCount} invoices`;
+          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount}`;
 
       } catch (err) {
         console.error('Fetch error:', err);
@@ -141,10 +206,18 @@
       }
     }
 
+    function getInitials(name) {
+      return name
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .toUpperCase();
+    }
+
     fetchData();
     setInterval(fetchData, 30000);
 
-    // Smooth Auto Scroll with Pause
+    // Auto Scroll Behavior
     const scrollArea = document.getElementById('scrollArea');
     let scrollDirection = 'down';
     const scrollSpeed = 1;
