@@ -88,7 +88,6 @@
         <tr>
           <th>Store Executive</th>
           <th>Total Invoices</th>
-          <th>Total Value</th>
           <th>Performance</th>
         </tr>
       </thead>
@@ -127,7 +126,6 @@
             execMap[exec].totalValue += amount;
             totalValue += amount;
 
-            // Only count corrections if it has a numeric value
             if (correctionValue !== "" && !isNaN(Number(correctionValue))) {
               execMap[exec].corrections += Number(correctionValue);
             }
@@ -135,13 +133,15 @@
         });
 
         const execList = Object.entries(execMap)
-          .map(([name, obj]) => ({
-            name,
-            count: obj.count,
-            corrections: obj.corrections,
-            totalValue: obj.totalValue,
-            percentage: ((obj.count / 50) * 100).toFixed(2)
-          }))
+          .map(([name, obj]) => {
+            const percentage = totalValue > 0 ? ((obj.totalValue / totalValue) * 100).toFixed(2) : "0.00";
+            return {
+              name,
+              count: obj.count,
+              corrections: obj.corrections,
+              percentage: percentage
+            };
+          })
           .sort((a, b) => b.percentage - a.percentage);
 
         const tbody = document.getElementById('table-body');
@@ -150,8 +150,8 @@
           const tr = document.createElement('tr');
           const perc = parseFloat(item.percentage);
 
-          if (perc <= 50) tr.className = 'low';
-          else if (perc <= 80) tr.className = 'medium';
+          if (perc <= 5) tr.className = 'low';
+          else if (perc <= 15) tr.className = 'medium';
           else tr.className = 'high';
 
           tr.innerHTML = `
@@ -163,7 +163,6 @@
               ${item.corrections > 0 ? `<div style="font-size: 0.85rem; color: #FFFF00; font-weight: bold;">
 (${item.corrections} correction${item.corrections > 1 ? 's' : ''})</div>` : ''}
             </td>
-            <td>KES ${item.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td>
               <div>${item.percentage}%</div>
               <div class="progress-container">
@@ -175,8 +174,7 @@
         });
 
         document.getElementById('summary-row').textContent =
-          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount} | 💰 Total Value: KES ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
+          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount} | 💰 Total Invoice Value: KES ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       } catch (err) {
         console.error('Fetch error:', err);
         document.getElementById('summary-row').textContent = 'Error loading summary.';
@@ -190,7 +188,6 @@
     fetchData();
     setInterval(fetchData, 30000);
 
-    // Auto Scroll Behavior
     const scrollArea = document.getElementById('scrollArea');
     let scrollDirection = 'down';
     const scrollSpeed = 1;
