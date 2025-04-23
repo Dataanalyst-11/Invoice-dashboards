@@ -28,6 +28,14 @@
       z-index: 100;
     }
 
+    #invoiceCount {
+      text-align: center;
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #17a2b8;
+      margin: 5px 0 0 0;
+    }
+
     .table-container {
       height: calc(100vh - 60px);
       overflow-y: auto;
@@ -79,6 +87,8 @@
 </head>
 <body>
   <h1>⚙️ Invoices on Transit 📦</h1>
+  <div id="invoiceCount">🔢 Total Invoices on Transit: calculating...</div>
+
   <div class="table-container" id="scrollArea">
     <table>
       <thead>
@@ -116,9 +126,12 @@
         const res = await fetch(API_URL);
         const data = await res.json();
         const tbody = document.getElementById('table-body');
+        const invoiceCountElem = document.getElementById('invoiceCount');
 
         tbody.innerHTML = '';
         Object.keys(liveTimers).forEach(key => delete liveTimers[key]);
+
+        let invoiceCount = 0;
 
         data.reverse().forEach(row => {
           const storeOut = row["Store Time Out"];
@@ -126,6 +139,8 @@
           const invoice = row["INVOICE NUMBER"] || '';
 
           if (storeOut && !confirmIn) {
+            invoiceCount++;
+
             const timeOut = new Date(storeOut);
             const now = new Date();
             const minutesPassed = (now - timeOut) / (1000 * 60);
@@ -156,13 +171,15 @@
             liveTimers[invoiceId] = timeOut;
           }
         });
+
+        invoiceCountElem.textContent = `🔢 Total Invoices on Transit: ${invoiceCount}`;
       } catch (err) {
         console.error('Fetch error:', err);
       }
     }
 
     fetchData();
-    setInterval(fetchData, 30000); // Refresh every 30 sec
+    setInterval(fetchData, 30000);
 
     setInterval(() => {
       const now = new Date();
