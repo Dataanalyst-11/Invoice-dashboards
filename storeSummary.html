@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Store Executive Performance Summary</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
       font-family: Arial, sans-serif;
       background: #ffffff;
@@ -16,75 +13,44 @@
       height: 100vh;
       overflow: hidden;
     }
-
     .header {
       background: #007bff;
       color: white;
       padding: 10px 20px;
       text-align: center;
     }
-
-    .header h1 {
-      margin: 0;
-      font-size: 1.5rem;
-    }
-
-    .summary {
-      padding-top: 4px;
-      font-size: 1rem;
-      font-weight: bold;
-    }
-
+    .header h1 { margin: 0; font-size: 1.5rem; }
+    .summary { padding-top: 4px; font-size: 1rem; font-weight: bold; }
     .table-container {
       height: calc(100vh - 92px);
       overflow-y: auto;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
       background: white;
     }
-
     th, td {
       padding: 12px;
       border: 1px solid #ddd;
       text-align: left;
     }
-
     thead th {
       background-color: #f1f1f1;
       position: sticky;
       top: 0;
       z-index: 100;
     }
-
- tr.low {
-  background-color: #8B0000; /* Blood red */
-  color: white;
-  font-weight: bold;
-}
-
-tr.medium {
-  background-color: #ffd633;
-  font-weight: bold;
-}
-
-tr.high {
-  background-color: #228B22; /* Amazon green */
-  color: white;
-  font-weight: bold;
-}
-
+    tr.low { background-color: #8B0000; color: white; font-weight: bold; }
+    tr.medium { background-color: #ffd633; font-weight: bold; }
+    tr.high { background-color: #228B22; color: white; font-weight: bold; }
     tr:nth-child(even):not(.low):not(.medium):not(.high) {
       background-color: #f9f9f9;
     }
-
     .exec-name {
       display: flex;
       align-items: center;
     }
-
     .avatar {
       width: 32px;
       height: 32px;
@@ -97,7 +63,6 @@ tr.high {
       margin-right: 10px;
       font-weight: bold;
     }
-
     .progress-container {
       background-color: #e0e0e0;
       border-radius: 4px;
@@ -105,7 +70,6 @@ tr.high {
       height: 8px;
       margin-top: 4px;
     }
-
     .progress-bar {
       height: 8px;
       background-color: black;
@@ -143,22 +107,30 @@ tr.high {
         const execMap = {};
         let printedCount = 0;
         let trackedCount = 0;
+        let totalValue = 0;
 
         data.forEach(row => {
           const exec = row["STORE EXECUTIVE"];
           const printed = row["PRINTED TIME"];
           const storeTimeOut = row["Store Time Out"];
-          const amount = parseFloat(row["INVOICE AMOUNT"].toString().replace(/,/g, '')) || 0;
+          const amount = parseFloat(row["INVOICE AMOUNT"]?.toString().replace(/,/g, '')) || 0;
+          const correctionValue = row["CORRECTIONS"]?.toString().trim();
 
           if (printed) printedCount++;
           if (storeTimeOut) trackedCount++;
 
           if (exec) {
             if (!execMap[exec]) {
-              execMap[exec] = { count: 0, totalValue: 0 };
+              execMap[exec] = { count: 0, totalValue: 0, corrections: 0 };
             }
             execMap[exec].count += 1;
             execMap[exec].totalValue += amount;
+            totalValue += amount;
+
+            // Only count corrections if it has a numeric value
+            if (correctionValue !== "" && !isNaN(Number(correctionValue))) {
+              execMap[exec].corrections += Number(correctionValue);
+            }
           }
         });
 
@@ -166,6 +138,7 @@ tr.high {
           .map(([name, obj]) => ({
             name,
             count: obj.count,
+            corrections: obj.corrections,
             totalValue: obj.totalValue,
             percentage: ((obj.count / 50) * 100).toFixed(2)
           }))
@@ -185,7 +158,11 @@ tr.high {
             <td class="exec-name">
               <div class="avatar">${getInitials(item.name)}</div>${item.name}
             </td>
-            <td>${item.count}</td>
+            <td>
+              ${item.count}
+              ${item.corrections > 0 ? `<div style="font-size: 0.85rem; color: black; font-weight: bold;">
+(${item.corrections} correction${item.corrections > 1 ? 's' : ''})</div>` : ''}
+            </td>
             <td>KES ${item.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td>
               <div>${item.percentage}%</div>
@@ -197,8 +174,8 @@ tr.high {
           tbody.appendChild(tr);
         });
 
-        document.getElementById('summary-row').textContent = 
-          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount}`;
+        document.getElementById('summary-row').textContent =
+          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount} | 💰 Total Value: KES ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
       } catch (err) {
         console.error('Fetch error:', err);
@@ -207,11 +184,7 @@ tr.high {
     }
 
     function getInitials(name) {
-      return name
-        .split(' ')
-        .map(word => word[0])
-        .join('')
-        .toUpperCase();
+      return name.split(' ').map(word => word[0]).join('').toUpperCase();
     }
 
     fetchData();
