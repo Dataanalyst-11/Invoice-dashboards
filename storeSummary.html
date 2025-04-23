@@ -174,7 +174,7 @@
         });
 
         document.getElementById('summary-row').textContent =
-          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount} | 💰 Total Invoice Value: KES ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount}`;
       } catch (err) {
         console.error('Fetch error:', err);
         document.getElementById('summary-row').textContent = 'Error loading summary.';
