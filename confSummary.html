@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Confirmation Executive Performance Summary</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #ffffff;
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #007bff;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .summary {
+      padding-top: 4px;
+      font-size: 1rem;
+      font-weight: bold;
+    }
+
+    .table-container {
+      height: calc(100vh - 92px);
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid #ddd;
+      text-align: left;
+    }
+
+    thead th {
+      background-color: #f1f1f1;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    tr.low {
+      background-color: #8B0000;
+      color: white;
+      font-weight: bold;
+    }
+
+    tr.medium {
+      background-color: #ffd633;
+      font-weight: bold;
+    }
+
+    tr.high {
+      background-color: #228B22;
+      color: white;
+      font-weight: bold;
+    }
+
+    tr:nth-child(even):not(.low):not(.medium):not(.high) {
+      background-color: #f9f9f9;
+    }
+
+    .exec-name {
+      display: flex;
+      align-items: center;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background-color: #007bff;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+
+    .progress-container {
+      background-color: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      height: 8px;
+      margin-top: 4px;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background-color: black;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 Confirmation Executive Performance Summary</h1>
+    <div class="summary" id="summary-row">Loading summary...</div>
+  </div>
+
+  <div class="table-container" id="scrollArea">
+    <table>
+      <thead>
+        <tr>
+          <th>Confirmation Executive</th>
+          <th>Total Invoices</th>
+          <th>Total Value</th>
+          <th>Performance</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
+
+    async function fetchData() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+
+        const execMap = {};
+        let confirmedCount = 0;
+        let trackedCount = 0;
+        let totalValue = 0;
+
+        data.forEach(row => {
+          const exec = row["CONFIRMATION EXECUTIVE"];
+          const confirmed = row["CONFIRMATION TIME IN"];
+          const storeOut = row["Store Time Out"];
+          const amount = parseFloat(row["INVOICE AMOUNT"].toString().replace(/,/g, '')) || 0;
+
+          if (confirmed) confirmedCount++;
+          if (storeOut) trackedCount++;
+
+          if (exec) {
+            if (!execMap[exec]) {
+              execMap[exec] = { count: 0, totalValue: 0 };
+            }
+            execMap[exec].count += 1;
+            execMap[exec].totalValue += amount;
+            totalValue += amount;
+          }
+        });
+
+        const execList = Object.entries(execMap)
+          .map(([name, obj]) => ({
+            name,
+            count: obj.count,
+            totalValue: obj.totalValue,
+            percentage: ((obj.count / 50) * 100).toFixed(2)
+          }))
+          .sort((a, b) => b.percentage - a.percentage);
+
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+        execList.forEach(item => {
+          const tr = document.createElement('tr');
+          const perc = parseFloat(item.percentage);
+
+          if (perc <= 50) tr.className = 'low';
+          else if (perc <= 80) tr.className = 'medium';
+          else tr.className = 'high';
+
+          tr.innerHTML = `
+            <td class="exec-name">
+              <div class="avatar">${getInitials(item.name)}</div>${item.name}
+            </td>
+            <td>${item.count}</td>
+            <td>KES ${item.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td>
+              <div>${item.percentage}%</div>
+              <div class="progress-container">
+                <div class="progress-bar" style="width: ${perc}%"></div>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById('summary-row').textContent = 
+          `✅ Total Confirmed Invoices: ${confirmedCount} | 📍 Total Tracked: ${trackedCount} | 💰 Total Value: KES ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      } catch (err) {
+        console.error('Fetch error:', err);
+        document.getElementById('summary-row').textContent = 'Error loading summary.';
+      }
+    }
+
+    function getInitials(name) {
+      return name
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .toUpperCase();
+    }
+
+    fetchData();
+    setInterval(fetchData, 30000);
+
+    // Auto Scroll Behavior
+    const scrollArea = document.getElementById('scrollArea');
+    let scrollDirection = 'down';
+    const scrollSpeed = 1;
+    const scrollPause = 3000;
+
+    function scrollStep() {
+      if (scrollDirection === 'down') {
+        if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight) {
+          scrollArea.scrollTop += scrollSpeed;
+          requestAnimationFrame(scrollStep);
+        } else {
+          scrollDirection = 'up';
+          setTimeout(() => requestAnimationFrame(scrollStep), scrollPause);
+        }
+      } else {
+        if (scrollArea.scrollTop > 0) {
+          scrollArea.scrollTop -= scrollSpeed;
+          requestAnimationFrame(scrollStep);
+        } else {
+          scrollDirection = 'down';
+          setTimeout(() => requestAnimationFrame(scrollStep), scrollPause);
+        }
+      }
+    }
+
+    window.addEventListener('load', () => {
+      setTimeout(() => requestAnimationFrame(scrollStep), 2000);
+    });
+  </script>
+</body>
+</html>
