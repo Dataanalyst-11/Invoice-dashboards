@@ -38,17 +38,18 @@
     .table-container {
       height: calc(100vh - 92px);
       overflow-y: auto;
+      padding: 10px;
     }
 
     table {
       width: 100%;
-      border-collapse: collapse;
-      background: white;
+      border-collapse: separate;
+      border-spacing: 0 8px;
     }
 
     th, td {
       padding: 12px;
-      border: 1px solid #ddd;
+      background: white;
       text-align: left;
     }
 
@@ -59,25 +60,26 @@
       z-index: 100;
     }
 
-    tr.low {
-      background-color: #8B0000;
+    tr {
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
+    tr.low td {
+      background-color: #c62828;
       color: white;
       font-weight: bold;
     }
 
-    tr.medium {
-      background-color: #ffd633;
+    tr.medium td {
+      background-color: #ffeb3b;
       font-weight: bold;
     }
 
-    tr.high {
-      background-color: #228B22;
+    tr.high td {
+      background-color: #388e3c;
       color: white;
       font-weight: bold;
-    }
-
-    tr:nth-child(even):not(.low):not(.medium):not(.high) {
-      background-color: #f9f9f9;
     }
 
     .exec-name {
@@ -124,7 +126,6 @@
         <tr>
           <th>Confirmation Executive</th>
           <th>Total Invoices</th>
-          <th>Total Value</th>
           <th>Performance</th>
         </tr>
       </thead>
@@ -165,12 +166,14 @@
         });
 
         const execList = Object.entries(execMap)
-          .map(([name, obj]) => ({
-            name,
-            count: obj.count,
-            totalValue: obj.totalValue,
-            percentage: ((obj.count / 50) * 100).toFixed(2)
-          }))
+          .map(([name, obj]) => {
+            const percentage = ((obj.totalValue / totalValue) * 100).toFixed(2);
+            return {
+              name,
+              count: obj.count,
+              percentage
+            };
+          })
           .sort((a, b) => b.percentage - a.percentage);
 
         const tbody = document.getElementById('table-body');
@@ -179,8 +182,8 @@
           const tr = document.createElement('tr');
           const perc = parseFloat(item.percentage);
 
-          if (perc <= 50) tr.className = 'low';
-          else if (perc <= 80) tr.className = 'medium';
+          if (perc <= 20) tr.className = 'low';
+          else if (perc <= 40) tr.className = 'medium';
           else tr.className = 'high';
 
           tr.innerHTML = `
@@ -188,7 +191,6 @@
               <div class="avatar">${getInitials(item.name)}</div>${item.name}
             </td>
             <td>${item.count}</td>
-            <td>KES ${item.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td>
               <div>${item.percentage}%</div>
               <div class="progress-container">
@@ -200,7 +202,7 @@
         });
 
         document.getElementById('summary-row').textContent = 
-          `✅ Total Confirmed Invoices: ${confirmedCount} | 📍 Total Tracked In Store: ${trackedCount} | 💰 Total Value: KES ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          `✅ Total Confirmed Invoices: ${confirmedCount} | 📍 Total Tracked In Store: ${trackedCount}`;
 
       } catch (err) {
         console.error('Fetch error:', err);
@@ -219,7 +221,6 @@
     fetchData();
     setInterval(fetchData, 30000);
 
-    // Auto Scroll Behavior
     const scrollArea = document.getElementById('scrollArea');
     let scrollDirection = 'down';
     const scrollSpeed = 1;
