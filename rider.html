@@ -86,13 +86,13 @@
 
    const card = document.createElement('div');
 card.className = `card rounded-2xl p-4 text-white border-4 ${
-  rider.pending > 0 ? 'bg-red-700 border-red-700 flashing' : 'bg-green-600 border-green-600'
+  rider.pending > 0 ? 'bg-pink-700 border-pink-700 flashing' : 'bg-green-600 border-green-600'
 }`;
 
 card.innerHTML = `
   <h2 class="text-xl font-bold mb-2">${rider.name}</h2>
   <p class="text-lg">✅ Delivered: <span class="font-bold">${rider.delivered}</span></p>
-  <p class="text-lg">🔴 Pending: <span class="font-bold">${rider.pending}</span></p>
+  <p class="text-lg">🔴 Pending Clearance: <span class="font-bold">${rider.pending}</span></p>
 `;
 
 
@@ -140,7 +140,7 @@ card.innerHTML = `
 
     window.addEventListener('load', () => {
       fetchRiderData();
-      setInterval(fetchRiderData, 30000);
+      setInterval(fetchRiderData, 15000);
       setTimeout(autoScroll, 10000); // wait 10s before starting scroll
     });
   </script>
