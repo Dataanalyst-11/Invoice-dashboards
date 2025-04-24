@@ -24,7 +24,6 @@
     #scrollWrapper {
       height: 90vh;
       overflow-y: auto;
-      scroll-behavior: smooth;
       padding: 1rem;
     }
   </style>
@@ -48,7 +47,7 @@
   <div class="text-center text-sm text-gray-500 pb-4" id="lastUpdated"></div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec'; // Replace with your Web App URL
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
 
     async function fetchRiderData() {
       try {
@@ -84,17 +83,15 @@
         totalDelivered += rider.delivered;
         totalPending += rider.pending;
 
-   const card = document.createElement('div');
-card.className = `card rounded-2xl p-4 text-white border-4 ${
-  rider.pending > 0 ? 'bg-pink-700 border-pink-700 flashing' : 'bg-green-600 border-green-600'
-}`;
+        const card = document.createElement('div');
+        const isGreen = rider.pending === 0;
+        card.className = `card rounded-2xl p-4 ${isGreen ? 'bg-green-600 border-green-600 text-black font-bold' : 'bg-pink-700 border-pink-700 text-white flashing'} border-4`;
 
-card.innerHTML = `
-  <h2 class="text-xl font-bold mb-2">${rider.name}</h2>
-  <p class="text-lg">✅ Delivered: <span class="font-bold">${rider.delivered}</span></p>
-  <p class="text-lg">🔴 Pending Clearance: <span class="font-bold">${rider.pending}</span></p>
-`;
-
+        card.innerHTML = `
+          <h2 class="text-xl font-bold mb-2">${rider.name}</h2>
+          <p class="text-lg">✅On Delivery: <span class="font-bold">${rider.delivered}</span></p>
+          <p class="text-lg">🔴 Pending Clearance: <span class="font-bold">${rider.pending}</span></p>
+        `;
 
         riderGrid.appendChild(card);
       });
@@ -107,41 +104,35 @@ card.innerHTML = `
       document.getElementById('lastUpdated').textContent = `Last Updated: ${now.toLocaleTimeString()}`;
     }
 
-    // Smooth auto-scroll
     const scrollWrapper = document.getElementById('scrollWrapper');
-    let scrollDir = 'down';
+    let scrollDirection = 'down';
+    const scrollSpeed = 1;
+    const scrollPause = 3000;
 
-    function autoScroll() {
-      const step = 1;
-      const delay = 20;
-      const max = scrollWrapper.scrollHeight - scrollWrapper.clientHeight;
-
-      function scrollStep() {
-        if (scrollDir === 'down') {
-          scrollWrapper.scrollTop += step;
-          if (scrollWrapper.scrollTop >= max) {
-            scrollDir = 'up';
-            setTimeout(scrollStep, 2000);
-            return;
-          }
+    function scrollStep() {
+      if (scrollDirection === 'down') {
+        if (scrollWrapper.scrollTop + scrollWrapper.clientHeight < scrollWrapper.scrollHeight) {
+          scrollWrapper.scrollTop += scrollSpeed;
+          requestAnimationFrame(scrollStep);
         } else {
-          scrollWrapper.scrollTop -= step;
-          if (scrollWrapper.scrollTop <= 0) {
-            scrollDir = 'down';
-            setTimeout(scrollStep, 15000);
-            return;
-          }
+          scrollDirection = 'up';
+          setTimeout(() => requestAnimationFrame(scrollStep), scrollPause);
         }
-        setTimeout(scrollStep, delay);
+      } else {
+        if (scrollWrapper.scrollTop > 0) {
+          scrollWrapper.scrollTop -= scrollSpeed;
+          requestAnimationFrame(scrollStep);
+        } else {
+          scrollDirection = 'down';
+          setTimeout(() => requestAnimationFrame(scrollStep), scrollPause);
+        }
       }
-
-      scrollStep();
     }
 
     window.addEventListener('load', () => {
       fetchRiderData();
       setInterval(fetchRiderData, 15000);
-      setTimeout(autoScroll, 10000); // wait 10s before starting scroll
+      setTimeout(() => requestAnimationFrame(scrollStep), 2000);
     });
   </script>
 </body>
