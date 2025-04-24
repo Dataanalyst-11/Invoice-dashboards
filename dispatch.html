@@ -189,9 +189,8 @@
     }
 
     fetchData();
-    setInterval(fetchData, 30000); // Refresh every 30 sec
+    setInterval(fetchData, 30000);
 
-    // Update countdown timers
     setInterval(() => {
       const now = new Date();
       for (const [invoiceId, startTime] of Object.entries(liveTimers)) {
@@ -203,38 +202,44 @@
       }
     }, 1000);
 
-    // Smooth Auto Scroll
+    // ✅ Smooth Auto Scroll with constant speed
     const scrollArea = document.getElementById('scrollArea');
     let direction = 'down';
+    let pausedUntil = 0;
 
     function smoothScroll() {
-      const speed = 1;
+      function step(now) {
+        const speed = 1;
 
-      function step() {
+        if (now < pausedUntil) {
+          requestAnimationFrame(step);
+          return;
+        }
+
         if (direction === 'down') {
           if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight - 1) {
             scrollArea.scrollTop += speed;
-            requestAnimationFrame(step);
           } else {
             direction = 'up';
-            setTimeout(() => requestAnimationFrame(step), 2000); // Pause at bottom
+            pausedUntil = now + 2000; // pause at bottom
           }
         } else {
           if (scrollArea.scrollTop > 0) {
             scrollArea.scrollTop -= speed;
-            requestAnimationFrame(step);
           } else {
             direction = 'down';
-            setTimeout(() => requestAnimationFrame(step), 2000); // Pause at top
+            pausedUntil = now + 2000; // pause at top
           }
         }
+
+        requestAnimationFrame(step);
       }
 
-      step();
+      requestAnimationFrame(step);
     }
 
     window.addEventListener('load', () => {
-      setTimeout(() => requestAnimationFrame(smoothScroll), 3000);
+      setTimeout(() => smoothScroll(), 3000); // Initial delay
     });
   </script>
 </body>
