@@ -19,6 +19,13 @@
       text-align: center;
       margin: 0;
     }
+    #invoiceCount {
+      text-align: center;
+      font-size: 1.2em;
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+    }
     #scrollArea {
       max-height: 90vh;
       overflow-y: auto;
@@ -59,24 +66,19 @@
       font-size: 0.85em;
       color: #f0f0f0;
     }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border-radius: 8px;
-      background: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-      margin-top: 10px;
-    }
   </style>
+
+  <!-- meSpeak.js TTS library -->
+  <script src="https://unpkg.com/mespeak/mespeak.min.js"></script>
+  <script>
+    // load config + voice (you can self-host these files too)
+    meSpeak.loadConfig("https://unpkg.com/mespeak/mespeak_config.json");
+    meSpeak.loadVoice("https://unpkg.com/mespeak/voices/en/en.json");
+  </script>
 </head>
 <body>
   <h1>🔵 In Confirmation Invoices</h1>
-
-  <div style="text-align:center;">
-    <button onclick="testVoice()">🔊 Test Voice</button>
-  </div>
+  <div id="invoiceCount">Loading invoice count...</div>
 
   <div id="scrollArea">
     <table>
@@ -93,29 +95,37 @@
     </table>
   </div>
 
+  <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
     const liveTimers = {};
-    let previousInvoiceIds = new Set();
 
     function minutesPassedSince(dateStr) {
-      const now = new Date();
-      const past = new Date(dateStr);
-      return (now - past) / (1000 * 60);
+      return (new Date() - new Date(dateStr)) / (1000 * 60);
     }
-
     function formatDateTime(input) {
-      const date = new Date(input);
-      if (isNaN(date.getTime())) return input;
-      const pad = n => n.toString().padStart(2, '0');
-      return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+      const d = new Date(input);
+      if (isNaN(d)) return input;
+      const pad = n => n.toString().padStart(2,'0');
+      return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ` +
+             `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+    function formatDuration(ms) {
+      const sec = Math.floor(ms/1000), m = Math.floor(sec/60), s = sec%60;
+      return `${m} min ${s} sec`;
     }
 
-    function formatDuration(ms) {
-      const totalSec = Math.floor(ms / 1000);
-      const minutes = Math.floor(totalSec / 60);
-      const seconds = totalSec % 60;
-      return `${minutes} min ${seconds} sec`;
+    // unified speak(): meSpeak fallback → Web Speech API
+    function speak(text) {
+      if (window.meSpeak && meSpeak.isConfigLoaded()) {
+        meSpeak.speak(text);
+      } else if ('speechSynthesis' in window) {
+        const synth = window.speechSynthesis;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'en-US';
+        synth.speak(utter);
+      }
     }
 
     async function fetchData() {
@@ -123,129 +133,91 @@
         const res = await fetch(API_URL);
         const data = await res.json();
         const tbody = document.getElementById('table-body');
-        tbody.innerHTML = ''; // Clear existing rows
-
-        data.sort((a, b) => new Date(b["CONFIRMATION TIME IN"]) - new Date(a["CONFIRMATION TIME IN"])); // newest first
-
-        const currentInvoiceIds = new Set();
+        tbody.innerHTML = '';
+        let count = 0;
         const newInvoices = [];
 
-        data.forEach(row => {
-          const storeOut = row["Store Time Out"];
-          const confirmIn = row["CONFIRMATION TIME IN"];
-          const confirmOut = row["CONFIRMATION TIME OUT"];
-          const invoice = row["INVOICE NUMBER"] || '';
-
-          if (storeOut && confirmIn && !confirmOut) {
-            const minutesPassed = minutesPassedSince(confirmIn);
-            const formattedTime = formatDateTime(confirmIn);
-            const invoiceId = invoice.replace(/\s/g, '');
-            const timerId = `timer-${invoiceId}`;
+        data.sort((a,b) => new Date(b["CONFIRMATION TIME IN"]) - new Date(a["CONFIRMATION TIME IN"]));
+        data.forEach(r => {
+          const inT = r["CONFIRMATION TIME IN"],
+                outT = r["CONFIRMATION TIME OUT"],
+                invoice = r["INVOICE NUMBER"] || '';
+          if (r["Store Time Out"] && inT && !outT) {
+            const mins = minutesPassedSince(inT);
+            const id = invoice.replace(/\s/g,'');
             const tr = document.createElement('tr');
-
-            if (minutesPassed > 20) {
-              tr.classList.add('highlight-red');
-            } else if (minutesPassed > 10) {
-              tr.classList.add('highlight-yellow');
-            } else {
-              tr.classList.add('highlight-green');
-            }
-
+            tr.classList.add(
+              mins>20 ? 'highlight-red' :
+              mins>10 ? 'highlight-yellow' :
+              'highlight-green'
+            );
             tr.innerHTML = `
               <td>${invoice}</td>
-              <td>
-                ${formattedTime}
-                <br>
-                <small id="${timerId}">⏱️ In Confirmation for: calculating...</small>
+              <td>${formatDateTime(inT)}<br>
+                  <small id="timer-${id}">⏱️ calculating…</small>
               </td>
-              <td>${row["CONFIRMATION EXECUTIVE"] || ''}</td>
-              <td>${row["CUSTOMER NAME"] || ''}</td>
-              <td>${row["ROUTE"] || ''}</td>
+              <td>${r["CONFIRMATION EXECUTIVE"]||''}</td>
+              <td>${r["CUSTOMER NAME"]||''}</td>
+              <td>${r["ROUTE"]||''}</td>
             `;
-
             tbody.appendChild(tr);
-            liveTimers[invoiceId] = new Date(confirmIn);
-            currentInvoiceIds.add(invoiceId);
-
-            if (!previousInvoiceIds.has(invoiceId)) {
+            if (!liveTimers[id]) {
+              liveTimers[id] = new Date(inT);
               newInvoices.push(invoice);
             }
+            count++;
           }
         });
 
-        previousInvoiceIds = currentInvoiceIds;
+        document.getElementById('invoiceCount').textContent =
+          `🔢 Total Invoices in Confirmation: ${count}`;
 
-        if (newInvoices.length > 0) {
-          speakInvoices(newInvoices);
+        // play beep + speak new ones
+        if (newInvoices.length) {
+          document.getElementById('beep').play();
+          newInvoices.forEach(inv => speak(`New invoice ${inv} entered confirmation`));
         }
 
-      } catch (err) {
-        console.error('Fetch failed:', err);
+      } catch (e) {
+        console.error(e);
+        document.getElementById('invoiceCount').textContent =
+          `⚠️ Failed to load invoices.`;
       }
     }
 
-    function speakInvoices(invoices) {
-      window.speechSynthesis.resume();
-      invoices.forEach((invoice, i) => {
-        const utterance = new SpeechSynthesisUtterance(`New invoice in confirmation: ${invoice}`);
-        utterance.rate = 1;
-        setTimeout(() => window.speechSynthesis.speak(utterance), i * 2000);
-      });
-    }
-
-    function testVoice() {
-      window.speechSynthesis.resume();
-      const testUtterance = new SpeechSynthesisUtterance("This is a test of the voice alert system.");
-      window.speechSynthesis.speak(testUtterance);
-    }
-
-    // Update countdown timers every second
+    // live timers
     setInterval(() => {
       const now = new Date();
-      for (const [invoiceId, startTime] of Object.entries(liveTimers)) {
-        const timerElem = document.getElementById(`timer-${invoiceId}`);
-        if (timerElem) {
-          const elapsed = now - startTime;
-          timerElem.textContent = `⏱️ In Confirmation for: ${formatDuration(elapsed)}`;
-        }
-      }
+      Object.entries(liveTimers).forEach(([id, start]) => {
+        const el = document.getElementById(`timer-${id}`);
+        if (el) el.textContent = `⏱️ In Confirmation for: ${formatDuration(now - start)}`;
+      });
     }, 1000);
 
-    // Smooth auto-scroll
-    const scrollArea = document.getElementById('scrollArea');
+    // auto-scroll (unchanged)
     let direction = 'down';
-
+    const scrollArea = document.getElementById('scrollArea');
     function smoothScroll() {
       const speed = 1;
-      function step() {
-        if (direction === 'down') {
-          if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight) {
-            scrollArea.scrollTop += speed;
-            requestAnimationFrame(step);
-          } else {
-            direction = 'up';
-            setTimeout(() => requestAnimationFrame(smoothScroll), 2000);
-          }
+      (function step() {
+        if (direction==='down') {
+          if (scrollArea.scrollTop+scrollArea.clientHeight < scrollArea.scrollHeight) {
+            scrollArea.scrollTop += speed; requestAnimationFrame(step);
+          } else { direction='up'; setTimeout(step,2000); }
         } else {
           if (scrollArea.scrollTop > 0) {
-            scrollArea.scrollTop -= speed;
-            requestAnimationFrame(step);
-          } else {
-            direction = 'down';
-            setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
-          }
+            scrollArea.scrollTop -= speed; requestAnimationFrame(step);
+          } else { direction='down'; setTimeout(step,15000); }
         }
-      }
-      step();
+      })();
     }
-
     window.addEventListener('load', () => {
       document.dispatchEvent(new Event('touchstart'));
-      setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
+      setTimeout(smoothScroll, 15000);
     });
 
     fetchData();
-    setInterval(fetchData, 15000); // Refresh every 15 seconds
+    setInterval(fetchData, 15000);
   </script>
 </body>
 </html>
