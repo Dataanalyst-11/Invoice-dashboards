@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🚚 Pending Invoices Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #fff8f0;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      background: #dc3545;
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 0;
+    }
+    #invoiceCount {
+      text-align: center;
+      font-size: 1.2em;
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+    }
+    #scrollArea {
+      max-height: 90vh;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: left;
+      vertical-align: top;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      background-color: #f7f7f7;
+      z-index: 10;
+    }
+    tr.highlight-green { background-color: #006400; color: white; font-weight: bold; }
+    tr.highlight-red { background-color: #8B0000; color: white; font-weight: bold; }
+    .timer {
+      font-size: 0.9em;
+      margin-top: 5px;
+      color: #eee;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>🚚 Pending Invoices</h1>
+  <div id="invoiceCount">Loading...</div>
+
+  <div id="scrollArea">
+    <table>
+      <thead>
+        <tr>
+          <th>Invoice Number</th>
+          <th>Rider</th>
+          <th>Dispatched Time</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxwY4Cf22TDKW8JOKqkab0R5d4UjrWFK4JjcIGqgUH5f_D7ZjpVRdNvO-P8srfujb0G/exec';
+
+    function formatDateTime(dateStr) {
+      const date = new Date(dateStr);
+      if (isNaN(date)) return dateStr;
+      const pad = n => n.toString().padStart(2, '0');
+      return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    function parseDate(dateStr) {
+      let parsed = new Date(dateStr);
+      if (!isNaN(parsed)) return parsed;
+      const parts = dateStr.trim().split(/[\s\/:-]/);
+      if (parts.length >= 5) {
+        const [day, month, year, hour, minute, second = 0] = parts.map(Number);
+        return new Date(year, month - 1, day, hour, minute, second);
+      }
+      return null;
+    }
+
+    let activeTimers = [];
+
+    function clearTimers() {
+      activeTimers.forEach(t => clearInterval(t));
+      activeTimers = [];
+    }
+
+    function startTimer(timerElement, dispatchedDate) {
+      function update() {
+        const now = new Date();
+        let diff = Math.floor((now - dispatchedDate) / 1000);
+        let hrs = Math.floor(diff / 3600);
+        let mins = Math.floor((diff % 3600) / 60);
+        let secs = diff % 60;
+        if (hrs > 0) {
+          timerElement.textContent = `${hrs}h ${mins}m ${secs}s`;
+        } else {
+          timerElement.textContent = `${mins}m ${secs}s`;
+        }
+      }
+      update();
+      const interval = setInterval(update, 1000);
+      activeTimers.push(interval);
+    }
+
+    async function fetchData() {
+      try {
+        clearTimers();
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        let pendingCount = 0;
+        let deliveredCount = 0;
+        let clearedCount = 0;
+
+        const filtered = data.filter(row => row["Delivered By"]);
+
+        filtered.forEach(row => {
+          if (row.STATUS === "PENDING") pendingCount++;
+          if (row.STATUS === "CLEARED") clearedCount++;
+          if (row["Delivered By"]) deliveredCount++;
+        });
+
+        const rowsToDisplay = filtered
+          .filter(row => row.STATUS === 'PENDING')
+          .sort((a, b) => {
+            const riderA = (a["Delivered By"] || '').toLowerCase();
+            const riderB = (b["Delivered By"] || '').toLowerCase();
+            return riderA.localeCompare(riderB);
+          });
+
+        rowsToDisplay.forEach(row => {
+          const dispatchTime = row["DISPATCHED TIME"];
+          const dispatchedDate = parseDate(dispatchTime);
+          const rider = row["Delivered By"] || '';
+
+          if (!dispatchedDate) return;
+
+          const minsPassed = (new Date() - dispatchedDate) / (1000 * 60);
+          const tr = document.createElement('tr');
+          if (minsPassed >= 60) tr.classList.add('highlight-red');
+          else tr.classList.add('highlight-green');
+
+          const timerId = `timer-${Math.random().toString(36).substr(2, 9)}`;
+          tr.innerHTML = `
+            <td>${row["INVOICE NO"] || ''}</td>
+            <td>${rider}</td>
+            <td>
+              ${formatDateTime(dispatchTime)}
+              <br><span class="timer" id="${timerId}">⏱</span>
+            </td>
+          `;
+
+          tbody.appendChild(tr);
+
+          const timerEl = document.getElementById(timerId);
+          if (timerEl) {
+            startTimer(timerEl, dispatchedDate);
+          }
+        });
+
+        document.getElementById('invoiceCount').innerHTML = `
+          ✅ Total Cleared: ${clearedCount} &nbsp;&nbsp;&nbsp;
+          📦 Total Delivered: ${deliveredCount} &nbsp;&nbsp;&nbsp;
+          🔴 Total Pending: ${pendingCount}
+        `;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('invoiceCount').textContent = '⚠️ Failed to fetch data.';
+      }
+    }
+
+    // Smooth scroll
+    const scrollArea = document.getElementById('scrollArea');
+    let direction = 'down';
+    function smoothScroll() {
+      const speed = 1.3;
+      function step() {
+        if (direction === 'down') {
+          if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight) {
+            scrollArea.scrollTop += speed;
+            requestAnimationFrame(step);
+          } else {
+            direction = 'up';
+            setTimeout(() => requestAnimationFrame(smoothScroll), 2000);
+          }
+        } else {
+          if (scrollArea.scrollTop > 0) {
+            scrollArea.scrollTop -= speed;
+            requestAnimationFrame(step);
+          } else {
+            direction = 'down';
+            setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
+          }
+        }
+      }
+      step();
+    }
+
+    window.addEventListener('load', () => {
+      document.dispatchEvent(new Event('touchstart'));
+      setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
+    });
+
+    fetchData();
+    setInterval(fetchData, 15000);
+  </script>
+</body>
+</html>
