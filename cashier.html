@@ -51,10 +51,16 @@
     tr.highlight-green { background-color: #006400; color: white; font-weight: bold; }
     tr.highlight-red { background-color: #8B0000; color: white; font-weight: bold; }
     .timer {
-      font-size: 0.9em;
-      margin-top: 5px;
+      font-size: 0.85em;
+      margin-top: 6px;
       color: #eee;
       display: block;
+    }
+    .timer-label {
+      font-size: 0.8em;
+      color: #f0f0f0;
+      display: block;
+      margin-bottom: 2px;
     }
   </style>
 </head>
@@ -167,7 +173,8 @@
             <td>${rider}</td>
             <td>
               ${formatDateTime(dispatchTime)}
-              <br><span class="timer" id="${timerId}">⏱</span>
+              <br><span class="timer-label">⏱ Elapsed Time Since Dispatch</span>
+              <span class="timer" id="${timerId}">⏱</span>
             </td>
           `;
 
@@ -194,7 +201,7 @@
     const scrollArea = document.getElementById('scrollArea');
     let direction = 'down';
     function smoothScroll() {
-      const speed = 1.5;
+      const speed = 1.5; // Slightly increased scroll speed
       function step() {
         if (direction === 'down') {
           if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight) {
