@@ -13,14 +13,6 @@
       transform: scale(1.03);
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     }
-    .flashing {
-      animation: flash 1s infinite;
-    }
-    @keyframes flash {
-      0% { border-color: red; }
-      50% { border-color: transparent; }
-      100% { border-color: red; }
-    }
     #scrollWrapper {
       height: 90vh;
       overflow-y: auto;
@@ -85,11 +77,11 @@
 
         const card = document.createElement('div');
         const isGreen = rider.pending === 0;
-        card.className = `card rounded-2xl p-4 ${isGreen ? 'bg-green-600 border-green-600 text-black font-bold' : 'bg-pink-700 border-pink-700 text-white flashing'} border-4`;
+        card.className = `card rounded-2xl p-4 ${isGreen ? 'bg-green-600 border-green-600 text-black font-bold' : 'bg-pink-700 border-pink-700 text-white'} border-4`;
 
         card.innerHTML = `
           <h2 class="text-xl font-bold mb-2">${rider.name}</h2>
-          <p class="text-lg">✅On Delivery: <span class="font-bold">${rider.delivered}</span></p>
+          <p class="text-lg">✅ On Delivery: <span class="font-bold">${rider.delivered}</span></p>
           <p class="text-lg">🔴 Pending Clearance: <span class="font-bold">${rider.pending}</span></p>
         `;
 
