@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard Flip Slideshow</title>
+  <title>Dashboard Slideshow</title>
   <style>
     body, html {
       margin: 0;
@@ -10,7 +10,6 @@
       overflow: hidden;
       height: 100%;
       background: #000;
-      perspective: 1200px;
     }
 
     .container {
@@ -19,63 +18,49 @@
       position: relative;
     }
 
-    .flip-card {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      transform-style: preserve-3d;
-      transition: transform 2s;
-    }
-
-    .front, .back {
-      width: 100%;
-      height: 100%;
-      position: absolute;
-      backface-visibility: hidden;
-    }
-
-    .back {
-      transform: rotateY(180deg);
-    }
-
     iframe {
       width: 100%;
       height: 100%;
       border: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      transition: opacity 1s ease;
+      opacity: 0;
+      z-index: 0;
+    }
+
+    iframe.active {
+      opacity: 1;
+      z-index: 1;
     }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <div class="flip-card" id="flipCard">
-    <div class="front">
-      <iframe id="cashierFrame" src="cashier.html"></iframe>
-    </div>
-    <div class="back">
-      <iframe id="riderFrame" src="rider.html"></iframe>
-    </div>
-  </div>
+  <iframe id="cashierFrame" src="cashier.html" class="active"></iframe>
+  <iframe id="riderFrame" src="rider.html"></iframe>
 </div>
 
 <script>
-  const flipCard = document.getElementById('flipCard');
   const cashierFrame = document.getElementById('cashierFrame');
   const riderFrame = document.getElementById('riderFrame');
 
-  let flipped = false;
+  let showingCashier = true;
 
   setInterval(() => {
-    flipped = !flipped;
-    flipCard.style.transform = flipped ? "rotateY(360deg)" : "rotateY(0deg)";
-
-    // Refresh the frame that is about to be shown
-    if (flipped) {
-      riderFrame.src = "rider.html?nocache=" + new Date().getTime();
+    if (showingCashier) {
+      riderFrame.src = "rider.html?nocache=" + new Date().getTime(); // Reload rider
+      cashierFrame.classList.remove('active');
+      riderFrame.classList.add('active');
     } else {
-      cashierFrame.src = "cashier.html?nocache=" + new Date().getTime();
+      cashierFrame.src = "cashier.html?nocache=" + new Date().getTime(); // Reload cashier
+      riderFrame.classList.remove('active');
+      cashierFrame.classList.add('active');
     }
-  }, 180000); // 180,000 ms = 10 minutes
+    showingCashier = !showingCashier;
+  }, 180000); // 180,000 ms = 3 minutes
 </script>
 
 </body>
