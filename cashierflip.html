@@ -48,19 +48,26 @@
   const riderFrame = document.getElementById('riderFrame');
 
   let showingCashier = true;
+  let timer;
 
-  setInterval(() => {
+  function switchDashboard() {
     if (showingCashier) {
-      riderFrame.src = "rider.html?nocache=" + new Date().getTime(); // Reload rider
+      riderFrame.src = "rider.html?nocache=" + new Date().getTime();
       cashierFrame.classList.remove('active');
       riderFrame.classList.add('active');
+      showingCashier = false;
+      timer = setTimeout(switchDashboard, 180000); // 3 minutes for rider
     } else {
-      cashierFrame.src = "cashier.html?nocache=" + new Date().getTime(); // Reload cashier
+      cashierFrame.src = "cashier.html?nocache=" + new Date().getTime();
       riderFrame.classList.remove('active');
       cashierFrame.classList.add('active');
+      showingCashier = true;
+      timer = setTimeout(switchDashboard, 360000); // 6 minutes for cashier
     }
-    showingCashier = !showingCashier;
-  }, 180000); // 180,000 ms = 3 minutes
+  }
+
+  // Start after cashier is shown for 6 minutes
+  timer = setTimeout(switchDashboard, 360000);
 </script>
 
 </body>
