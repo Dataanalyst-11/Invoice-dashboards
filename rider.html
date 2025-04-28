@@ -41,6 +41,11 @@
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
 
+    let scrollAnimationId = null; // Track the current scroll animation
+    let scrollDirection = 'down';
+    const scrollSpeed = 1.5;
+    const scrollPause = 3000;
+
     async function fetchRiderData() {
       try {
         const res = await fetch(API_URL);
@@ -96,35 +101,48 @@
       document.getElementById('lastUpdated').textContent = `Last Updated: ${now.toLocaleTimeString()}`;
     }
 
-    const scrollWrapper = document.getElementById('scrollWrapper');
-    let scrollDirection = 'down';
-    const scrollSpeed = 1.5;
-    const scrollPause = 3000;
-
     function scrollStep() {
+      const scrollWrapper = document.getElementById('scrollWrapper');
+
       if (scrollDirection === 'down') {
         if (scrollWrapper.scrollTop + scrollWrapper.clientHeight < scrollWrapper.scrollHeight) {
           scrollWrapper.scrollTop += scrollSpeed;
-          requestAnimationFrame(scrollStep);
+          scrollAnimationId = requestAnimationFrame(scrollStep);
         } else {
           scrollDirection = 'up';
-          setTimeout(() => requestAnimationFrame(scrollStep), scrollPause);
+          setTimeout(() => {
+            scrollAnimationId = requestAnimationFrame(scrollStep);
+          }, scrollPause);
         }
       } else {
         if (scrollWrapper.scrollTop > 0) {
           scrollWrapper.scrollTop -= scrollSpeed;
-          requestAnimationFrame(scrollStep);
+          scrollAnimationId = requestAnimationFrame(scrollStep);
         } else {
           scrollDirection = 'down';
-          setTimeout(() => requestAnimationFrame(scrollStep), scrollPause);
+          setTimeout(() => {
+            scrollAnimationId = requestAnimationFrame(scrollStep);
+          }, scrollPause);
         }
       }
     }
 
+    function restartScroll() {
+      if (scrollAnimationId !== null) {
+        cancelAnimationFrame(scrollAnimationId); // Cancel previous animation
+      }
+      setTimeout(() => {
+        scrollAnimationId = requestAnimationFrame(scrollStep);
+      }, 2000); // 2 seconds delay to restart
+    }
+
     window.addEventListener('load', () => {
       fetchRiderData();
-      setInterval(fetchRiderData, 15000);
-      setTimeout(() => requestAnimationFrame(scrollStep), 2000);
+      restartScroll();
+      setInterval(() => {
+        fetchRiderData();
+        restartScroll();
+      }, 15000); // Refresh data every 15 seconds
     });
   </script>
 </body>
