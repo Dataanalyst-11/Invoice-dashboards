@@ -82,129 +82,155 @@
   </div>
 
   <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbxwY4Cf22TDKW8JOKqkab0R5d4UjrWFK4JjcIGqgUH5f_D7ZjpVRdNvO-P8srfujb0G/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxwY4Cf22TDKW8JOKqkab0R5d4UjrWFK4JjcIGqgUH5f_D7ZjpVRdNvO-P8srfujb0G/exec';
 
-function formatDateTime(dateStr) {
-  const date = new Date(dateStr);
-  if (isNaN(date)) return dateStr;
-  const pad = n => n.toString().padStart(2, '0');
-  return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-}
+    function formatDateTime(dateStr) {
+      const date = new Date(dateStr);
+      if (isNaN(date)) return dateStr;
+      const pad = n => n.toString().padStart(2, '0');
+      return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
 
-function parseDate(dateStr) {
-  let parsed = new Date(dateStr);
-  if (!isNaN(parsed)) return parsed;
-  const parts = dateStr.trim().split(/[\s\/:-]/);
-  if (parts.length >= 5) {
-    const [day, month, year, hour, minute, second = 0] = parts.map(Number);
-    return new Date(year, month - 1, day, hour, minute, second);
-  }
-  return null;
-}
+    function parseDate(dateStr) {
+      let parsed = new Date(dateStr);
+      if (!isNaN(parsed)) return parsed;
+      const parts = dateStr.trim().split(/[\s\/:-]/);
+      if (parts.length >= 5) {
+        const [day, month, year, hour, minute, second = 0] = parts.map(Number);
+        return new Date(year, month - 1, day, hour, minute, second);
+      }
+      return null;
+    }
 
-async function fetchData() {
-  try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
-    const tbody = document.getElementById('table-body');
-    tbody.innerHTML = '';
+    let activeTimers = [];
 
-    let pendingCount = 0;
-    let deliveredCount = 0;
-    let clearedCount = 0;
+    function clearTimers() {
+      activeTimers.forEach(t => clearInterval(t));
+      activeTimers = [];
+    }
 
-    const filtered = data.filter(row => row["Delivered By"]);
-
-    filtered.forEach(row => {
-      if (row.STATUS === "PENDING") pendingCount++;
-      if (row.STATUS === "CLEARED") clearedCount++;
-      if (row["Delivered By"]) deliveredCount++;
-    });
-
-    const rowsToDisplay = filtered
-      .filter(row => row.STATUS === 'PENDING')
-      .sort((a, b) => (a["Delivered By"] || '').localeCompare(b["Delivered By"] || ''));
-
-    rowsToDisplay.forEach(row => {
-      const dispatchTime = row["DISPATCHED TIME"];
-      const dispatchedDate = parseDate(dispatchTime);
-      const rider = row["Delivered By"] || '';
-
-      if (!dispatchedDate) return;
-
-      const minsPassed = (new Date() - dispatchedDate) / (1000 * 60);
-      const tr = document.createElement('tr');
-      tr.className = minsPassed >= 60 ? 'highlight-red' : 'highlight-green';
-
-      tr.innerHTML = `
-        <td>${row["INVOICE NO"] || ''}</td>
-        <td>${rider}</td>
-        <td>
-          ${formatDateTime(dispatchTime)}
-          <br><span class="timer-label">⏱ Elapsed Time Since Dispatch</span>
-          <span class="timer" data-dispatched="${dispatchedDate.toISOString()}">⏱</span>
-        </td>
-      `;
-
-      tbody.appendChild(tr);
-    });
-
-    document.getElementById('invoiceCount').innerHTML = `
-      ✅ Total Cleared: ${clearedCount} &nbsp;&nbsp;&nbsp;
-      📦 Total Delivered: ${deliveredCount} &nbsp;&nbsp;&nbsp;
-      🔴 Total Pending: ${pendingCount}
-    `;
-  } catch (err) {
-    console.error(err);
-    document.getElementById('invoiceCount').textContent = '⚠️ Failed to fetch data.';
-  }
-}
-
-// Master timer to update all timers
-function startMasterTimer() {
-  setInterval(() => {
-    const now = new Date();
-    document.querySelectorAll('.timer').forEach(timerEl => {
-      const dispatchedTime = timerEl.getAttribute('data-dispatched');
-      if (dispatchedTime) {
-        const date = new Date(dispatchedTime);
-        let diff = Math.floor((now - date) / 1000);
+    function startTimer(timerElement, dispatchedDate) {
+      function update() {
+        const now = new Date();
+        let diff = Math.floor((now - dispatchedDate) / 1000);
         let hrs = Math.floor(diff / 3600);
         let mins = Math.floor((diff % 3600) / 60);
         let secs = diff % 60;
-        timerEl.textContent = hrs > 0 ? `${hrs}h ${mins}m ${secs}s` : `${mins}m ${secs}s`;
+        if (hrs > 0) {
+          timerElement.textContent = `${hrs}h ${mins}m ${secs}s`;
+        } else {
+          timerElement.textContent = `${mins}m ${secs}s`;
+        }
       }
+      update();
+      const interval = setInterval(update, 1000);
+      activeTimers.push(interval);
+    }
+
+    async function fetchData() {
+      try {
+        clearTimers();
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        let pendingCount = 0;
+        let deliveredCount = 0;
+        let clearedCount = 0;
+
+        const filtered = data.filter(row => row["Delivered By"]);
+
+        filtered.forEach(row => {
+          if (row.STATUS === "PENDING") pendingCount++;
+          if (row.STATUS === "CLEARED") clearedCount++;
+          if (row["Delivered By"]) deliveredCount++;
+        });
+
+        const rowsToDisplay = filtered
+          .filter(row => row.STATUS === 'PENDING')
+          .sort((a, b) => {
+            const riderA = (a["Delivered By"] || '').toLowerCase();
+            const riderB = (b["Delivered By"] || '').toLowerCase();
+            return riderA.localeCompare(riderB);
+          });
+
+        rowsToDisplay.forEach(row => {
+          const dispatchTime = row["DISPATCHED TIME"];
+          const dispatchedDate = parseDate(dispatchTime);
+          const rider = row["Delivered By"] || '';
+
+          if (!dispatchedDate) return;
+
+          const minsPassed = (new Date() - dispatchedDate) / (1000 * 60);
+          const tr = document.createElement('tr');
+          if (minsPassed >= 60) tr.classList.add('highlight-red');
+          else tr.classList.add('highlight-green');
+
+          const timerId = `timer-${Math.random().toString(36).substr(2, 9)}`;
+          tr.innerHTML = `
+            <td>${row["INVOICE NO"] || ''}</td>
+            <td>${rider}</td>
+            <td>
+              ${formatDateTime(dispatchTime)}
+              <br><span class="timer-label">⏱ Elapsed Time Since Dispatch</span>
+              <span class="timer" id="${timerId}">⏱</span>
+            </td>
+          `;
+
+          tbody.appendChild(tr);
+
+          const timerEl = document.getElementById(timerId);
+          if (timerEl) {
+            startTimer(timerEl, dispatchedDate);
+          }
+        });
+
+        document.getElementById('invoiceCount').innerHTML = `
+          ✅ Total Cleared: ${clearedCount} &nbsp;&nbsp;&nbsp;
+          📦 Total Delivered: ${deliveredCount} &nbsp;&nbsp;&nbsp;
+          🔴 Total Pending: ${pendingCount}
+        `;
+      } catch (err) {
+        console.error(err);
+        document.getElementById('invoiceCount').textContent = '⚠️ Failed to fetch data.';
+      }
+    }
+
+    // Smooth scroll
+    const scrollArea = document.getElementById('scrollArea');
+    let direction = 'down';
+    function smoothScroll() {
+      const speed = 2 ; // Slightly increased scroll speed
+      function step() {
+        if (direction === 'down') {
+          if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight) {
+            scrollArea.scrollTop += speed;
+            requestAnimationFrame(step);
+          } else {
+            direction = 'up';
+            setTimeout(() => requestAnimationFrame(smoothScroll), 2000);
+          }
+        } else {
+          if (scrollArea.scrollTop > 0) {
+            scrollArea.scrollTop -= speed;
+            requestAnimationFrame(step);
+          } else {
+            direction = 'down';
+            setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
+          }
+        }
+      }
+      step();
+    }
+
+    window.addEventListener('load', () => {
+      document.dispatchEvent(new Event('touchstart'));
+      setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
     });
-  }, 1000);
-}
 
-// Smooth scroll - single animation loop
-function startSmoothScroll() {
-  const scrollArea = document.getElementById('scrollArea');
-  let scrollDirection = 1;
-
-  function step() {
-    scrollArea.scrollTop += scrollDirection * 1.5; // 1.5px per frame
-    if (scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight) {
-      scrollDirection = -1;
-    }
-    if (scrollArea.scrollTop <= 0) {
-      scrollDirection = 1;
-    }
-    requestAnimationFrame(step);
-  }
-
-  requestAnimationFrame(step);
-}
-
-// Initialize everything
-window.addEventListener('load', () => {
-  fetchData();
-  startMasterTimer();
-  startSmoothScroll();
-  setInterval(fetchData, 15000); // 15 seconds refresh
-});
-</script>
-a
+    fetchData();
+    setInterval(fetchData, 15000);
+  </script>
 </body>
 </html>
