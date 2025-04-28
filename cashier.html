@@ -83,26 +83,13 @@
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxwY4Cf22TDKW8JOKqkab0R5d4UjrWFK4JjcIGqgUH5f_D7ZjpVRdNvO-P8srfujb0G/exec';
-
-    function formatDateTime(dateStr) {
-      const date = new Date(dateStr);
-      if (isNaN(date)) return dateStr;
-      const pad = n => n.toString().padStart(2, '0');
-      return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-    }
-
-    function parseDate(dateStr) {
-      let parsed = new Date(dateStr);
-      if (!isNaN(parsed)) return parsed;
-      const parts = dateStr.trim().split(/[\s\/:-]/);
-      if (parts.length >= 5) {
-        const [day, month, year, hour, minute, second = 0] = parts.map(Number);
-        return new Date(year, month - 1, day, hour, minute, second);
-      }
-      return null;
-    }
+    const scrollArea = document.getElementById('scrollArea');
 
     let activeTimers = [];
+    let direction = 'down';
+    let autoFetchTimer = null;
+    let isScrolling = false;
+    let scrollSpeed = 2; // Adjust scroll speed here
 
     function clearTimers() {
       activeTimers.forEach(t => clearInterval(t));
@@ -164,8 +151,7 @@
 
           const minsPassed = (new Date() - dispatchedDate) / (1000 * 60);
           const tr = document.createElement('tr');
-          if (minsPassed >= 60) tr.classList.add('highlight-red');
-          else tr.classList.add('highlight-green');
+          tr.classList.add(minsPassed >= 60 ? 'highlight-red' : 'highlight-green');
 
           const timerId = `timer-${Math.random().toString(36).substr(2, 9)}`;
           tr.innerHTML = `
@@ -181,9 +167,7 @@
           tbody.appendChild(tr);
 
           const timerEl = document.getElementById(timerId);
-          if (timerEl) {
-            startTimer(timerEl, dispatchedDate);
-          }
+          if (timerEl) startTimer(timerEl, dispatchedDate);
         });
 
         document.getElementById('invoiceCount').innerHTML = `
@@ -192,64 +176,74 @@
           🔴 Total Pending: ${pendingCount}
         `;
 
+        adjustScrolling(); // Recheck scrolling capability
       } catch (err) {
         console.error(err);
         document.getElementById('invoiceCount').textContent = '⚠️ Failed to fetch data.';
       }
     }
 
-    // Improved smooth scroll
+    function formatDateTime(dateStr) {
+      const date = new Date(dateStr);
+      if (isNaN(date)) return dateStr;
+      const pad = n => n.toString().padStart(2, '0');
+      return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    }
+
+    function parseDate(dateStr) {
+      let parsed = new Date(dateStr);
+      if (!isNaN(parsed)) return parsed;
+      const parts = dateStr.trim().split(/[\s\/:-]/);
+      if (parts.length >= 5) {
+        const [day, month, year, hour, minute, second = 0] = parts.map(Number);
+        return new Date(year, month - 1, day, hour, minute, second);
+      }
+      return null;
+    }
+
     function smoothScroll() {
-      const scrollArea = document.getElementById('scrollArea');
-      const scrollHeight = scrollArea.scrollHeight - scrollArea.clientHeight;
-
-      const pixelsPerStep = 1;        // 1 pixel per step
-      const msPerStepDown = 20;        // 20ms per pixel scrolling down
-      const msPerStepUp = 5;           // 5ms per pixel scrolling up (faster)
-
-      function scrollDown() {
-        let position = scrollArea.scrollTop;
-        function step() {
-          if (position < scrollHeight) {
-            position += pixelsPerStep;
-            scrollArea.scrollTop = position;
-            setTimeout(step, msPerStepDown);
-          } else {
-            setTimeout(scrollUp, 3000); // wait 3 seconds at bottom
-          }
+      if (!isScrolling) return; // If scrolling is disabled
+      if (direction === 'down') {
+        if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight) {
+          scrollArea.scrollTop += scrollSpeed;
+          requestAnimationFrame(smoothScroll);
+        } else {
+          direction = 'up';
+          setTimeout(() => requestAnimationFrame(smoothScroll), 1000);
         }
-        step();
-      }
-
-      function scrollUp() {
-        let position = scrollArea.scrollTop;
-        function step() {
-          if (position > 0) {
-            position -= pixelsPerStep;
-            if (position < 0) position = 0;
-            scrollArea.scrollTop = position;
-            setTimeout(step, msPerStepUp);
-          } else {
-            setTimeout(() => {
-              fetchData();
-              setTimeout(smoothScroll, 1000);
-            }, 2000); // wait 2 seconds at top
-          }
+      } else {
+        if (scrollArea.scrollTop > 0) {
+          scrollArea.scrollTop -= scrollSpeed;
+          requestAnimationFrame(smoothScroll);
+        } else {
+          direction = 'down';
+          fetchData(); // Immediate fetch at top
+          setTimeout(() => requestAnimationFrame(smoothScroll), 1000);
         }
-        step();
       }
+    }
 
-      scrollDown();
+    function adjustScrolling() {
+      if (scrollArea.scrollHeight > scrollArea.clientHeight + 50) { 
+        // If content is tall enough to scroll
+        isScrolling = true;
+        if (!autoFetchTimer) {
+          clearInterval(autoFetchTimer);
+        }
+      } else {
+        // Few rows: no autoscroll needed
+        isScrolling = false;
+      }
     }
 
     window.addEventListener('load', () => {
-      document.dispatchEvent(new Event('touchstart'));
-      fetchData().then(() => {
-        setTimeout(smoothScroll, 1000);
-      });
+      fetchData();
+      setInterval(fetchData, 15000);
+      setTimeout(() => {
+        isScrolling = true;
+        requestAnimationFrame(smoothScroll);
+      }, 2000);
     });
-
-    setInterval(fetchData, 15000); // fetch new data every 15 seconds
   </script>
 </body>
 </html>
