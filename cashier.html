@@ -89,132 +89,132 @@
     </table>
   </div>
 
-  <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxwY4Cf22TDKW8JOKqkab0R5d4UjrWFK4JjcIGqgUH5f_D7ZjpVRdNvO-P8srfujb0G/exec';
-    const timerElements = [];
+ <script>
+  const API_URL = 'https://script.google.com/macros/s/AKfycbxwY4Cf22TDKW8JOKqkab0R5d4UjrWFK4JjcIGqgUH5f_D7ZjpVRdNvO-P8srfujb0G/exec';
+  const timerElements = [];
 
-    function formatDateTime(dateStr) {
-      const date = new Date(dateStr);
-      if (isNaN(date)) return dateStr;
-      const pad = n => n.toString().padStart(2, '0');
-      return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  function formatDateTime(dateStr) {
+    const date = new Date(dateStr);
+    if (isNaN(date)) return dateStr;
+    const pad = n => n.toString().padStart(2, '0');
+    return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
+  function parseDate(dateStr) {
+    const parts = dateStr.trim().split(/[\s\/:-]/);
+    if (parts.length >= 5) {
+      const [day, month, year, hour, minute, second = 0] = parts.map(Number);
+      return new Date(year, month - 1, day, hour, minute, second);
     }
+    return new Date(dateStr); // fallback
+  }
 
-    function parseDate(dateStr) {
-      const parts = dateStr.trim().split(/[\s\/:-]/);
-      if (parts.length >= 5) {
-        const [day, month, year, hour, minute, second = 0] = parts.map(Number);
-        return new Date(year, month - 1, day, hour, minute, second);
-      }
-      return new Date(dateStr); // fallback
-    }
+  function clearTimers() {
+    timerElements.length = 0;
+  }
 
-    function clearTimers() {
-      timerElements.length = 0;
-    }
-
-    function updateTimers() {
-      const now = new Date();
-      timerElements.forEach(obj => {
-        const diff = Math.floor((now - obj.dispatchedDate) / 1000);
-        const hrs = Math.floor(diff / 3600);
-        const mins = Math.floor((diff % 3600) / 60);
-        const secs = diff % 60;
-        obj.element.textContent = hrs > 0 ? `${hrs}h ${mins}m ${secs}s` : `${mins}m ${secs}s`;
-      });
-    }
-
-    async function fetchData() {
-      try {
-        clearTimers();
-        document.getElementById('loading').style.display = 'block';
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        const tbody = document.getElementById('table-body');
-        tbody.innerHTML = '';
-        document.getElementById('loading').style.display = 'none';
-
-        let pendingCount = 0, deliveredCount = 0, clearedCount = 0;
-
-        const filtered = data.filter(row => row["Delivered By"]);
-
-        filtered.forEach(row => {
-          if (row.STATUS === "PENDING") pendingCount++;
-          if (row.STATUS === "CLEARED") clearedCount++;
-          if (row["Delivered By"]) deliveredCount++;
-        });
-
-        const rowsToDisplay = filtered
-          .filter(row => row.STATUS === 'PENDING')
-          .sort((a, b) => (a["Delivered By"] || '').localeCompare(b["Delivered By"] || ''));
-
-        rowsToDisplay.forEach(row => {
-          const dispatchTime = row["DISPATCHED TIME"];
-          const dispatchedDate = parseDate(dispatchTime);
-          if (!dispatchedDate) return;
-
-          const minsPassed = (new Date() - dispatchedDate) / (1000 * 60);
-          const tr = document.createElement('tr');
-          tr.className = minsPassed >= 60 ? 'highlight-red' : 'highlight-green';
-
-          const timerEl = document.createElement('span');
-          timerEl.className = 'timer';
-          timerEl.textContent = '⏱';
-
-          timerElements.push({ element: timerEl, dispatchedDate });
-
-          tr.innerHTML = `
-            <td>${row["INVOICE NO"] || ''}</td>
-            <td>${row["Delivered By"] || ''}</td>
-            <td>${formatDateTime(dispatchTime)}
-              <span class="timer-label">⏱ Elapsed Time Since Dispatch</span>
-            </td>
-          `;
-
-          tr.querySelector('td:nth-child(3)').appendChild(timerEl);
-          tbody.appendChild(tr);
-        });
-
-        document.getElementById('invoiceCount').innerHTML = `
-          ✅ Total Cleared: ${clearedCount} &nbsp;&nbsp;&nbsp;
-          📦 Total Delivered: ${deliveredCount} &nbsp;&nbsp;&nbsp;
-          🔴 Total Pending: ${pendingCount}
-        `;
-      } catch (err) {
-        console.error(err);
-        document.getElementById('invoiceCount').textContent = '⚠️ Failed to fetch data.';
-      }
-    }
-
-    // Global timer for all rows
-    setInterval(updateTimers, 1000);
-
-    // Fetch every 30s
-    fetchData();
-    setInterval(fetchData, 30000);
-
-    // Smooth auto-scroll
-    const scrollArea = document.getElementById('scrollArea');
-    let scrollDirection = 1;
-    function smoothScroll() {
-      const speed = 0.5;
-      scrollArea.scrollTop += speed * scrollDirection;
-
-      if (scrollDirection === 1 && scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight) {
-        scrollDirection = -1;
-        setTimeout(() => requestAnimationFrame(smoothScroll), 10000);
-      } else if (scrollDirection === -1 && scrollArea.scrollTop <= 0) {
-        scrollDirection = 1;
-        setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
-      } else {
-        requestAnimationFrame(smoothScroll);
-      }
-    }
-
-    window.addEventListener('load', () => {
-      document.dispatchEvent(new Event('touchstart'));
-      setTimeout(() => requestAnimationFrame(smoothScroll), 10000);
+  function updateTimers() {
+    const now = new Date();
+    timerElements.forEach(obj => {
+      const diff = Math.floor((now - obj.dispatchedDate) / 1000);
+      const hrs = Math.floor(diff / 3600);
+      const mins = Math.floor((diff % 3600) / 60);
+      const secs = diff % 60;
+      obj.element.textContent = hrs > 0 ? `${hrs}h ${mins}m ${secs}s` : `${mins}m ${secs}s`;
     });
-  </script>
+  }
+
+  async function fetchData() {
+    try {
+      clearTimers();
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = '';
+
+      let pendingCount = 0, deliveredCount = 0, clearedCount = 0;
+
+      const filtered = data.filter(row => row["Delivered By"]);
+
+      filtered.forEach(row => {
+        if (row.STATUS === "PENDING") pendingCount++;
+        if (row.STATUS === "CLEARED") clearedCount++;
+        if (row["Delivered By"]) deliveredCount++;
+      });
+
+      const rowsToDisplay = filtered
+        .filter(row => row.STATUS === 'PENDING')
+        .sort((a, b) => (a["Delivered By"] || '').localeCompare(b["Delivered By"] || ''));
+
+      rowsToDisplay.forEach(row => {
+        const dispatchTime = row["DISPATCHED TIME"];
+        const dispatchedDate = parseDate(dispatchTime);
+        if (!dispatchedDate) return;
+
+        const minsPassed = (new Date() - dispatchedDate) / (1000 * 60);
+        const tr = document.createElement('tr');
+        tr.className = minsPassed >= 60 ? 'highlight-red' : 'highlight-green';
+
+        const timerEl = document.createElement('span');
+        timerEl.className = 'timer';
+        timerEl.textContent = '⏱';
+
+        timerElements.push({ element: timerEl, dispatchedDate });
+
+        tr.innerHTML = `
+          <td>${row["INVOICE NO"] || ''}</td>
+          <td>${row["Delivered By"] || ''}</td>
+          <td>${formatDateTime(dispatchTime)}
+            <span class="timer-label">⏱ Elapsed Time Since Dispatch</span>
+          </td>
+        `;
+
+        tr.querySelector('td:nth-child(3)').appendChild(timerEl);
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('invoiceCount').innerHTML = `
+        ✅ Total Cleared: ${clearedCount} &nbsp;&nbsp;&nbsp;
+        📦 Total Delivered: ${deliveredCount} &nbsp;&nbsp;&nbsp;
+        🔴 Total Pending: ${pendingCount}
+      `;
+    } catch (err) {
+      console.error(err);
+      document.getElementById('invoiceCount').textContent = '⚠️ Failed to fetch data.';
+    }
+  }
+
+  // Global timer for countdowns
+  setInterval(updateTimers, 1000);
+
+  // Fetch every 30s
+  fetchData();
+  setInterval(fetchData, 30000);
+
+  // Auto-scroll regardless of data loading
+  const scrollArea = document.getElementById('scrollArea');
+  let scrollDirection = 1;
+
+  function smoothScroll() {
+    const speed = 0.5;
+    scrollArea.scrollTop += speed * scrollDirection;
+
+    if (scrollDirection === 1 && scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight) {
+      scrollDirection = -1;
+      setTimeout(() => requestAnimationFrame(smoothScroll), 10000);
+    } else if (scrollDirection === -1 && scrollArea.scrollTop <= 0) {
+      scrollDirection = 1;
+      setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
+    } else {
+      requestAnimationFrame(smoothScroll);
+    }
+  }
+
+  window.addEventListener('load', () => {
+    document.dispatchEvent(new Event('touchstart'));
+    requestAnimationFrame(smoothScroll);
+  });
+</script>
+
 </body>
 </html>
