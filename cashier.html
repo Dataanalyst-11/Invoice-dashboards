@@ -187,25 +187,25 @@
   // Smooth auto-scroll compatible with Fully Kiosk and Android TV
   const scrollArea = document.getElementById('scrollArea');
   let scrollPosition = 0;
-  let goingDown = true;
+let scrollDirection = 1;
 
-  setInterval(() => {
-    const maxScroll = scrollArea.scrollHeight - scrollArea.clientHeight;
-    if (goingDown) {
-      scrollPosition += 1;
-      if (scrollPosition >= maxScroll) {
-        goingDown = false;
-        setTimeout(() => {}, 10000); // pause at bottom
-      }
-    } else {
-      scrollPosition -= 1;
-      if (scrollPosition <= 0) {
-        goingDown = true;
-        setTimeout(() => {}, 15000); // pause at top
-      }
-    }
-    scrollArea.scrollTop = scrollPosition;
-  }, 30); // Adjust for scroll speed
+setInterval(() => {
+  const maxScroll = scrollArea.scrollHeight - scrollArea.clientHeight;
+
+  // Increase scroll speed by jumping 2px per frame
+  scrollPosition += scrollDirection * 2;
+
+  if (scrollPosition >= maxScroll) {
+    scrollPosition = maxScroll;
+    scrollDirection = -1;
+  } else if (scrollPosition <= 0) {
+    scrollPosition = 0;
+    scrollDirection = 1;
+  }
+
+  scrollArea.scrollTop = scrollPosition;
+}, 20); // Runs every 25 milliseconds
+
 </script>
 
 </body>
