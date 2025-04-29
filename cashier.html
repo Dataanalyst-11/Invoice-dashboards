@@ -64,19 +64,12 @@
       display: block;
       color: #fff;
     }
-    #loading {
-      text-align: center;
-      padding: 30px;
-      font-size: 1.5em;
-      display: none;
-    }
   </style>
 </head>
 <body>
   <h1>🚚 Pending Invoices for Clearance</h1>
   <div id="invoiceCount">Loading...</div>
   <div id="scrollArea">
-    <div id="loading">⏳ Loading...</div>
     <table>
       <thead>
         <tr>
@@ -89,7 +82,7 @@
     </table>
   </div>
 
- <script>
+<script>
   const API_URL = 'https://script.google.com/macros/s/AKfycbxwY4Cf22TDKW8JOKqkab0R5d4UjrWFK4JjcIGqgUH5f_D7ZjpVRdNvO-P8srfujb0G/exec';
   const timerElements = [];
 
@@ -184,36 +177,35 @@
     }
   }
 
-  // Global timer for countdowns
+  // Timer updates every second
   setInterval(updateTimers, 1000);
 
-  // Fetch every 30s
+  // Data refresh every 30 seconds
   fetchData();
   setInterval(fetchData, 30000);
 
-  // Auto-scroll regardless of data loading
+  // Smooth auto-scroll compatible with Fully Kiosk and Android TV
   const scrollArea = document.getElementById('scrollArea');
-  let scrollDirection = 1;
+  let scrollPosition = 0;
+  let goingDown = true;
 
-  function smoothScroll() {
-    const speed = 0.5;
-    scrollArea.scrollTop += speed * scrollDirection;
-
-    if (scrollDirection === 1 && scrollArea.scrollTop + scrollArea.clientHeight >= scrollArea.scrollHeight) {
-      scrollDirection = -1;
-      setTimeout(() => requestAnimationFrame(smoothScroll), 10000);
-    } else if (scrollDirection === -1 && scrollArea.scrollTop <= 0) {
-      scrollDirection = 1;
-      setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
+  setInterval(() => {
+    const maxScroll = scrollArea.scrollHeight - scrollArea.clientHeight;
+    if (goingDown) {
+      scrollPosition += 1;
+      if (scrollPosition >= maxScroll) {
+        goingDown = false;
+        setTimeout(() => {}, 10000); // pause at bottom
+      }
     } else {
-      requestAnimationFrame(smoothScroll);
+      scrollPosition -= 1;
+      if (scrollPosition <= 0) {
+        goingDown = true;
+        setTimeout(() => {}, 15000); // pause at top
+      }
     }
-  }
-
-  window.addEventListener('load', () => {
-    document.dispatchEvent(new Event('touchstart'));
-    requestAnimationFrame(smoothScroll);
-  });
+    scrollArea.scrollTop = scrollPosition;
+  }, 30); // Adjust for scroll speed
 </script>
 
 </body>
