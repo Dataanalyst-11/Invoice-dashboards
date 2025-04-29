@@ -72,12 +72,15 @@
   <div id="scrollArea">
     <table>
       <thead>
-        <tr>
-          <th>Invoice Number</th>
-          <th>Rider</th>
-          <th>Dispatched Time</th>
-        </tr>
-      </thead>
+        <thead>
+  <tr>
+    <th>Invoice Number</th>
+    <th>Rider</th>
+    <th>Main Route</th>
+    <th>Dispatched Time</th>
+  </tr>
+</thead>
+
       <tbody id="table-body"></tbody>
     </table>
   </div>
@@ -157,12 +160,13 @@
         tr.innerHTML = `
           <td>${row["INVOICE NO"] || ''}</td>
           <td>${row["Delivered By"] || ''}</td>
+	   <td>${row["RIDERS ROUTE"] || ''}</td>
           <td>${formatDateTime(dispatchTime)}
             <span class="timer-label">⏱ Elapsed Time Since Dispatch</span>
           </td>
         `;
 
-        tr.querySelector('td:nth-child(3)').appendChild(timerEl);
+        tr.querySelector('td:nth-child(4)').appendChild(timerEl);
         tbody.appendChild(tr);
       });
 
@@ -204,7 +208,7 @@ setInterval(() => {
   }
 
   scrollArea.scrollTop = scrollPosition;
-}, 20); // Runs every 25 milliseconds
+}, 20); // Runs every 20 milliseconds
 
 </script>
 
