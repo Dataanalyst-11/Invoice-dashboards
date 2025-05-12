@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -92,7 +91,7 @@
     const date = new Date(dateStr);
     if (isNaN(date)) return dateStr;
     const pad = n => n.toString().padStart(2, '0');
-    return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    return ${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())};
   }
 
   function parseDate(dateStr) {
@@ -115,7 +114,7 @@
       const hrs = Math.floor(diff / 3600);
       const mins = Math.floor((diff % 3600) / 60);
       const secs = diff % 60;
-      obj.element.textContent = hrs > 0 ? `${hrs}h ${mins}m ${secs}s` : `${mins}m ${secs}s`;
+      obj.element.textContent = hrs > 0 ? ${hrs}h ${mins}m ${secs}s : ${mins}m ${secs}s;
     });
   }
 
@@ -159,24 +158,24 @@
 
         timerElements.push({ element: timerEl, dispatchedDate });
 
-        tr.innerHTML = `
+        tr.innerHTML = 
           <td>${row["INVOICE NO"] || ''}</td>
           <td>${row["Delivered By"] || ''}</td>
           <td>${row["RIDERS ROUTE"] || ''}</td>
           <td>${formatDateTime(dispatchTime)}
             <span class="timer-label">⏱ Elapsed Time Since Dispatch</span>
           </td>
-        `;
+        ;
 
         tr.querySelector('td:nth-child(4)').appendChild(timerEl);
         tbody.appendChild(tr);
       });
 
-      document.getElementById('invoiceCount').innerHTML = `
+      document.getElementById('invoiceCount').innerHTML = 
         ✅ Total Cleared: ${clearedCount} &nbsp;&nbsp;&nbsp;
         📦 Total Delivered: ${deliveredCount} &nbsp;&nbsp;&nbsp;
         🔴 Total Pending: ${pendingCount}
-      `;
+      ;
     } catch (err) {
       console.error(err);
       document.getElementById('invoiceCount').textContent = '⚠️ Failed to fetch data.';
