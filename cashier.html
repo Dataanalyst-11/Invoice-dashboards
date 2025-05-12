@@ -95,12 +95,15 @@
   }
 
   function parseDate(dateStr) {
-    const parts = dateStr.trim().split(/[\s\/:-]/);
+    if (!dateStr) return null;
+    const parts = dateStr.trim().split(/[\s\/:-]/).map(p => p.trim());
     if (parts.length >= 5) {
       const [day, month, year, hour, minute, second = 0] = parts.map(Number);
-      return new Date(year, month - 1, day, hour, minute, second);
+      const parsed = new Date(year, month - 1, day, hour, minute, second);
+      return isNaN(parsed) ? null : parsed;
     }
-    return new Date(dateStr); // fallback
+    const fallback = new Date(dateStr);
+    return isNaN(fallback) ? null : fallback;
   }
 
   function clearTimers() {
@@ -146,7 +149,7 @@
       rowsToDisplay.forEach(row => {
         const dispatchTime = row["DISPATCHED TIME"];
         const dispatchedDate = parseDate(dispatchTime);
-        if (!dispatchedDate) return;
+        if (!(dispatchedDate instanceof Date) || isNaN(dispatchedDate)) return;
 
         const minsPassed = (new Date() - dispatchedDate) / (1000 * 60);
         const tr = document.createElement('tr');
