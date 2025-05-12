@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -95,13 +94,22 @@
     return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   }
 
+  // Updated parseDate function to handle MM/DD/YYYY format
   function parseDate(dateStr) {
-    const parts = dateStr.trim().split(/[\s\/:-]/);
-    if (parts.length >= 5) {
-      const [day, month, year, hour, minute, second = 0] = parts.map(Number);
-      return new Date(year, month - 1, day, hour, minute, second);
-    }
-    return new Date(dateStr); // fallback
+    if (!dateStr || typeof dateStr !== 'string') return new Date(0); // fallback to 1970
+
+    console.log('Dispatch Time:', dateStr); // Debugging line to check format
+
+    // Split date and time part
+    const [datePart, timePart] = dateStr.trim().split(' ');
+    if (!datePart || !timePart) return new Date(0);
+
+    // Parse MM/DD/YYYY format
+    const [month, day, year] = datePart.split('/').map(Number);
+    const [hour, minute, second] = timePart.split(':').map(Number);
+
+    // Return a proper Date object
+    return new Date(year, month - 1, day, hour, minute, second || 0);  // Month is zero-indexed
   }
 
   function clearTimers() {
@@ -147,7 +155,7 @@
       rowsToDisplay.forEach(row => {
         const dispatchTime = row["DISPATCHED TIME"];
         const dispatchedDate = parseDate(dispatchTime);
-        if (!dispatchedDate) return;
+        if (!dispatchedDate || isNaN(dispatchedDate)) return;
 
         const minsPassed = (new Date() - dispatchedDate) / (1000 * 60);
         const tr = document.createElement('tr');
@@ -172,25 +180,20 @@
         tbody.appendChild(tr);
       });
 
-      document.getElementById('invoiceCount').innerHTML = `
-        ✅ Total Cleared: ${clearedCount} &nbsp;&nbsp;&nbsp;
-        📦 Total Delivered: ${deliveredCount} &nbsp;&nbsp;&nbsp;
-        🔴 Total Pending: ${pendingCount}
-      `;
+      document.getElementById('invoiceCount').innerHTML = 
+        `✅ Total Cleared: ${clearedCount} &nbsp;&nbsp;&nbsp;
+         📦 Total Delivered: ${deliveredCount} &nbsp;&nbsp;&nbsp;
+         🔴 Total Pending: ${pendingCount}`;
     } catch (err) {
       console.error(err);
       document.getElementById('invoiceCount').textContent = '⚠️ Failed to fetch data.';
     }
   }
 
-  // Timer updates every second
   setInterval(updateTimers, 1000);
-
-  // Data refresh every 30 seconds
   fetchData();
   setInterval(fetchData, 30000);
 
-  // Smooth auto-scroll compatible with Fully Kiosk and Android TV
   const scrollArea = document.getElementById('scrollArea');
   let scrollPosition = 0;
   let scrollDirection = 1;
