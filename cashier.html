@@ -148,12 +148,25 @@
 
       rowsToDisplay.forEach(row => {
         const dispatchTime = row["DISPATCHED TIME"];
-        const dispatchedDate = parseDate(dispatchTime);
-        const now = new Date();
-        if (!dispatchedDate || dispatchedDate > now) {
-          console.warn("Skipping invalid or future DISPATCHED TIME:", dispatchTime);
-          return;
-        }
+       const now = new Date();
+const dispatchedDate = parseDate(dispatchTime);
+
+// Reject invalid or future dates
+if (!dispatchedDate || isNaN(dispatchedDate.getTime()) || dispatchedDate > now) {
+  const tr = document.createElement('tr');
+  tr.className = 'highlight-red';
+  tr.innerHTML = `
+    <td>${row["INVOICE NO"] || ''}</td>
+    <td>${row["Delivered By"] || ''}</td>
+    <td>${row["RIDERS ROUTE"] || ''}</td>
+    <td style="color: yellow; font-weight: bold;">
+      ⚠️ Invalid Dispatch Time<br>${dispatchTime || 'N/A'}
+    </td>
+  `;
+  tbody.appendChild(tr);
+  return;
+}
+
 
         const minsPassed = (now - dispatchedDate) / (1000 * 60);
         const tr = document.createElement('tr');
