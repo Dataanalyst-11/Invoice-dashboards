@@ -94,7 +94,7 @@
     return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   }
 
-  // Updated parseDate function to handle MM/DD/YYYY format
+  // Updated parseDate function to handle DD/MM/YYYY format
   function parseDate(dateStr) {
     if (!dateStr || typeof dateStr !== 'string') return new Date(0); // fallback to 1970
 
@@ -104,8 +104,8 @@
     const [datePart, timePart] = dateStr.trim().split(' ');
     if (!datePart || !timePart) return new Date(0);
 
-    // Parse MM/DD/YYYY format
-    const [month, day, year] = datePart.split('/').map(Number);
+    // Parse DD/MM/YYYY format
+    const [day, month, year] = datePart.split('/').map(Number);
     const [hour, minute, second] = timePart.split(':').map(Number);
 
     // Return a proper Date object
@@ -150,7 +150,11 @@
 
       const rowsToDisplay = filtered
         .filter(row => row.STATUS === 'PENDING')
-        .sort((a, b) => (a["Delivered By"] || '').localeCompare(b["Delivered By"] || ''));
+        .sort((a, b) => {
+          const dateA = parseDate(a["DISPATCHED TIME"]);
+          const dateB = parseDate(b["DISPATCHED TIME"]);
+          return dateB - dateA; // Sort by most recent dispatch time first (descending)
+        });
 
       rowsToDisplay.forEach(row => {
         const dispatchTime = row["DISPATCHED TIME"];
@@ -167,7 +171,7 @@
 
         timerElements.push({ element: timerEl, dispatchedDate });
 
-        tr.innerHTML = `
+        tr.innerHTML = ` 
           <td>${row["INVOICE NO"] || ''}</td>
           <td>${row["Delivered By"] || ''}</td>
           <td>${row["RIDERS ROUTE"] || ''}</td>
