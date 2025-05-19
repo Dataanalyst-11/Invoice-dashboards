@@ -91,25 +91,20 @@
     const date = new Date(dateStr);
     if (isNaN(date)) return dateStr;
     const pad = n => n.toString().padStart(2, '0');
-    return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    return `${pad(date.getMonth()+1)}/${pad(date.getDate())}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   }
 
-  // Updated parseDate function to handle DD/MM/YYYY format
+  // ✅ Corrected: Parse MM/DD/YYYY format
   function parseDate(dateStr) {
-    if (!dateStr || typeof dateStr !== 'string') return new Date(0); // fallback to 1970
+    if (!dateStr || typeof dateStr !== 'string') return new Date(0);
 
-    console.log('Dispatch Time:', dateStr); // Debugging line to check format
-
-    // Split date and time part
     const [datePart, timePart] = dateStr.trim().split(' ');
     if (!datePart || !timePart) return new Date(0);
 
-    // Parse DD/MM/YYYY format
-    const [day, month, year] = datePart.split('/').map(Number);
+    const [month, day, year] = datePart.split('/').map(Number);
     const [hour, minute, second] = timePart.split(':').map(Number);
 
-    // Return a proper Date object
-    return new Date(year, month - 1, day, hour, minute, second || 0);  // Month is zero-indexed
+    return new Date(year, month - 1, day, hour, minute, second || 0);
   }
 
   function clearTimers() {
@@ -153,7 +148,7 @@
         .sort((a, b) => {
           const dateA = parseDate(a["DISPATCHED TIME"]);
           const dateB = parseDate(b["DISPATCHED TIME"]);
-          return dateB - dateA; // Sort by most recent dispatch time first (descending)
+          return dateB - dateA; // descending
         });
 
       rowsToDisplay.forEach(row => {
