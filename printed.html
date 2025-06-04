@@ -28,8 +28,16 @@
       z-index: 100;
     }
 
+    #invoice-count {
+      text-align: center;
+      font-size: 1.2em;
+      margin-top: 8px;
+      margin-bottom: -10px;
+      font-weight: bold;
+    }
+
     .table-container {
-      height: calc(100vh - 60px);
+      height: calc(100vh - 100px);
       overflow-y: auto;
       padding: 20px;
     }
@@ -79,6 +87,8 @@
 </head>
 <body>
   <h1>🖨️ Printed Invoices</h1>
+  <div id="invoice-count">Loading count...</div>
+
   <div class="table-container" id="scrollArea">
     <table>
       <thead>
@@ -116,19 +126,26 @@
         const res = await fetch(API_URL);
         const data = await res.json();
         const tbody = document.getElementById('table-body');
+        const countDisplay = document.getElementById('invoice-count');
 
         tbody.innerHTML = '';
         Object.keys(liveTimers).forEach(key => delete liveTimers[key]);
+
+        let totalPrintedCount = 0;
 
         data.reverse().forEach(row => {
           const printedTime = row["PRINTED TIME"];
           const storeIn = row["Store Time In"];
           const invoice = row["INVOICE NUMBER"] || '';
 
+          if (printedTime) {
+            totalPrintedCount++; // Count all rows that have a PRINTED TIME
+          }
+
+          // Display only those where Store Time In is empty
           if (printedTime && !storeIn) {
             const timePrinted = new Date(printedTime);
-            const now = new Date();
-            const minutesPassed = (now - timePrinted) / (1000 * 60);
+            const minutesPassed = (new Date() - timePrinted) / (1000 * 60);
             const invoiceId = invoice.replace(/\s/g, '');
             const timerId = `timer-${invoiceId}`;
 
@@ -156,6 +173,8 @@
             liveTimers[invoiceId] = timePrinted;
           }
         });
+
+        countDisplay.textContent = `🧾 Total Invoices Printed Today: ${totalPrintedCount}`;
       } catch (err) {
         console.error('Fetch error:', err);
       }
