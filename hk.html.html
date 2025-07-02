@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hacker Terminal Loop</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      overflow: hidden;
+      font-family: "Courier New", monospace;
+      color: #00FF00;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+      display: none;
+    }
+    #diagnostics, #terminalWrap {
+      position: relative;
+      z-index: 1;
+      padding: 20px;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      display: none;
+    }
+    #diagnostics h1 {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- MATRIX BACKGROUND -->
+  <canvas id="matrix"></canvas>
+
+  <!-- SYSTEM DIAGNOSTICS INTERFACE -->
+  <div id="diagnostics">
+    <h1>System Diagnostics - Core v7.3.92</h1>
+    <div id="output"></div>
+  </div>
+
+  <!-- TERMINAL INTERFACE -->
+  <div id="terminalWrap">
+    <div id="terminal"></div>
+  </div>
+
+  <script>
+    const diagnosticsDiv = document.getElementById('diagnostics');
+    const output = document.getElementById('output');
+    const matrixCanvas = document.getElementById('matrix');
+    const terminalWrap = document.getElementById('terminal');
+    const ctx = matrixCanvas.getContext('2d');
+    const fontSize = 14;
+
+    // ---- MATRIX SETUP ----
+    matrixCanvas.width = window.innerWidth;
+    matrixCanvas.height = window.innerHeight;
+    const letters = 'アァイイウエオカキクケコサシスセソ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const columns = matrixCanvas.width / fontSize;
+    const drops = Array(Math.floor(columns)).fill(1);
+
+    function drawMatrix() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+      ctx.fillStyle = '#0F0';
+      ctx.font = fontSize + 'px monospace';
+
+      drops.forEach((y, index) => {
+        const text = letters.charAt(Math.floor(Math.random() * letters.length));
+        ctx.fillText(text, index * fontSize, y * fontSize);
+        if (y * fontSize > matrixCanvas.height && Math.random() > 0.975) drops[index] = 0;
+        drops[index]++;
+      });
+    }
+
+    let matrixInterval;
+
+    // ---- DUMMY DATA ----
+    const dummyLines = [
+      "[INFO] Initializing Quantum Core Modules...",
+      "[LOADER] Parsing /etc/syscore/quantum.conf...",
+      "[CORE] Allocating 1024MB virtual heap...",
+      "[SECURITY] Applying RSA-4096 encrypted tunnel...",
+      "[NET] Handshake established with node 172.28.44.55:8811",
+      "[FIRMWARE] Downloading delta patch for module: /opt/sys/biotools.so",
+      "[AI] Bootstrapping Neuron Engine - Session ID: 9AF2E1D...",
+      "[CRON] Injecting auto-response routines for threat detection...",
+      "[KERNEL] Executing shellcode from encrypted payload...",
+      "[MALWARE SCAN] Reverse engineering obfuscated script...",
+      "[TRACE] Simulated packet spoof: SUCCESS",
+      "[GPU] Distributed tensor logic in progress...",
+      "[CORE] Quantum register engagement at 89%.",
+      "[BOTNET] Signal disruption successful. Dormant."
+    ];
+
+    // ---- TERMINAL SCREENS ----
+    const terminalScreens = [
+      () => {
+        const lines = [];
+        for (let i = 0; i < 30; i++) {
+          const ts = new Date().toISOString();
+          const message = dummyLines[Math.floor(Math.random() * dummyLines.length)];
+          lines.push(`[${ts}] ${message}`);
+        }
+        return lines.join('\n');
+      },
+      () => `
+██████╗  █████╗  ██████╗ ██████╗ ███████╗███████╗
+██╔══██╗██╔══██╗██╔════╝ ██╔══██╗██╔════╝██╔════╝
+██████╔╝███████║██║  ███╗██████╔╝█████╗  ███████╗
+██╔═══╝ ██╔══██║██║   ██║██╔═══╝ ██╔══╝  ╚════██║
+██║     ██║  ██║╚██████╔╝██║     ███████╗███████║
+╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚══════╝╚══════╝
+
+>>> ACCESS GRANTED
+SYSTEM UPLINK ACTIVE
+DECODING CORE SEQUENCES...
+DEPLOYING ENCRYPTED PAYLOAD...
+█▓▒░ █▓▒░ █▓▒░ █▓▒░ █▓▒░ █▓▒░ █▓▒░ █▓▒░
+`,
+      () => `
+TRACE PROTOCOL INITIATED...
+LOCATING SOURCE...
+
+> ROUTER HOP #1: 203.0.113.1 → SUCCESS
+> ROUTER HOP #2: 10.44.21.7 → SUCCESS
+> ROUTER HOP #3: 172.16.0.9 → SUCCESS
+> ANONYMITY LAYER: BYPASSED
+> DEEP SCAN NODE: 198.51.100.77
+
+SOURCE LOCATED:
+HOSTNAME: UNIDENTIFIED
+IP: 192.0.2.99
+LOCATION: [REDACTED]
+PING RESPONSE: 2.3ms
+SHELL ACCESS: ESTABLISHED
+
+>>> TRACE COMPLETE
+[ESC] to TERMINATE SESSION
+`
+    ];
+
+    let diagnosticsTimer, terminalTimer, logInterval, terminalScreenIndex = 0;
+
+    function showDiagnosticsMode() {
+      diagnosticsDiv.style.display = 'block';
+      terminalWrap.parentElement.style.display = 'none';
+      matrixCanvas.style.display = 'none';
+
+      output.textContent = '';
+      let counter = 0;
+
+      logInterval = setInterval(() => {
+        const timestamp = new Date().toISOString();
+        const message = dummyLines[Math.floor(Math.random() * dummyLines.length)];
+        output.textContent += `[${timestamp}] ${message}\n`;
+        output.scrollTop = output.scrollHeight;
+        if (++counter > 100) {
+          output.textContent = '';
+          counter = 0;
+        }
+      }, 300);
+    }
+
+    function showTerminalMode() {
+      diagnosticsDiv.style.display = 'none';
+      terminalWrap.parentElement.style.display = 'block';
+      matrixCanvas.style.display = 'block';
+
+      clearInterval(logInterval);
+      drawMatrix(); // start one frame immediately
+      matrixInterval = setInterval(drawMatrix, 33);
+
+      terminalWrap.textContent = terminalScreens[terminalScreenIndex % terminalScreens.length]();
+      terminalScreenIndex++;
+    }
+
+    function loopModes() {
+      showDiagnosticsMode();
+      diagnosticsTimer = setTimeout(() => {
+        showTerminalMode();
+        terminalTimer = setTimeout(loopModes, 30000); // Terminal for 30s
+      }, 120000); // Diagnostics for 2 mins
+    }
+
+    loopModes(); // Start the cycle
+  </script>
+</body>
+</html>
