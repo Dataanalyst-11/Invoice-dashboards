@@ -40,6 +40,7 @@
     .table-container {
       height: calc(100vh - 92px);
       overflow-y: auto;
+      overflow-x: auto;
       padding: 20px;
     }
 
@@ -47,6 +48,13 @@
       width: 100%;
       border-collapse: collapse;
       background: white;
+    }
+
+    caption {
+      text-align: left;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #333;
     }
 
     th, td {
@@ -87,9 +95,9 @@
   </style>
 </head>
 <body>
-  <h1>🟡 In Store Invoices</h1>
+  <h1><span role="img" aria-label="Invoices">🏬</span> In Store Invoices</h1>
   <div id="invoiceCount">Loading invoice count...</div>
-    <div class="table-container" id="scrollArea">
+  <div class="table-container" id="scrollArea">
     <table>
       <thead>
         <tr>
@@ -106,7 +114,7 @@
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbxZGkZtHB2ViVBuLfheOkWEfLg_KemtgPTewtYfM65m8vDmcl09dbu1Rwn6T280iVFSQA/exec';
-    const liveTimers = {};
+    const liveTimers = new Map();
 
     function formatDateTime(input) {
       const date = new Date(input);
@@ -125,13 +133,13 @@
     async function fetchData() {
       try {
         const res = await fetch(API_URL);
+        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const data = await res.json();
-        const tbody = document.getElementById('table-body');
-        let invoiceCount = 0;
 
-        // Clear table and timers on each refresh
-        tbody.innerHTML = '';
-        Object.keys(liveTimers).forEach(key => delete liveTimers[key]);
+        const tbody = document.getElementById('table-body');
+        const fragment = document.createDocumentFragment();
+        let invoiceCount = 0;
+        const newTimers = new Map();
 
         data.reverse().forEach(row => {
           const storeIn = row["Store Time In"];
@@ -143,11 +151,10 @@
             const timeIn = new Date(storeIn);
             const now = new Date();
             const minutesPassed = (now - timeIn) / (1000 * 60);
-            const invoiceId = invoice.replace(/\s/g, '');
+            const invoiceId = encodeURIComponent(invoice || `row-${Math.random().toString(36).slice(2)}`);
             const timerId = `timer-${invoiceId}`;
 
             const tr = document.createElement('tr');
-
             if (minutesPassed > 20) {
               tr.classList.add('highlight-red');
             } else if (minutesPassed > 10) {
@@ -161,75 +168,88 @@
               <td>${row["STORE EXECUTIVE"] || ''}</td>
               <td>
                 ${formatDateTime(storeIn)}<br>
-                <small id="${timerId}">⏱️ In Store for: calculating...</small>
+                <small id="${timerId}">⏱️ In Store for: ${formatDuration(now - timeIn)}</small>
               </td>
               <td>${row["CUSTOMER NAME"] || ''}</td>
               <td>${row["ROUTE"] || ''}</td>
             `;
 
-            tbody.appendChild(tr);
-            liveTimers[invoiceId] = timeIn;
+            fragment.appendChild(tr);
+            newTimers.set(invoiceId, timeIn);
           }
         });
 
-        // Update invoice count display
+        // Update table in one batch
+        tbody.innerHTML = '';
+        tbody.appendChild(fragment);
+
+        // Replace timers with new set
+        liveTimers.clear();
+        newTimers.forEach((v, k) => liveTimers.set(k, v));
+
         document.getElementById('invoiceCount').textContent =
           `🔢 Total Invoices in Store: ${invoiceCount}`;
 
       } catch (err) {
         console.error('Fetch error:', err);
-        document.getElementById('invoiceCount').textContent = 'Error loading count';
+        document.getElementById('invoiceCount').textContent = 'Error loading invoices';
       }
     }
 
+    // Initial load and periodic refresh
     fetchData();
-    setInterval(fetchData, 30000); // Refresh every 30 sec
+    setInterval(fetchData, 30000);
 
-    // Update countdown timers
+    // Live timer updates
     setInterval(() => {
       const now = new Date();
-      for (const [invoiceId, startTime] of Object.entries(liveTimers)) {
+      liveTimers.forEach((startTime, invoiceId) => {
         const timerElem = document.getElementById(`timer-${invoiceId}`);
         if (timerElem) {
-          const elapsed = now - startTime;
-          timerElem.textContent = `⏱️ In Store for: ${formatDuration(elapsed)}`;
+          timerElem.textContent = `⏱️ In Store for: ${formatDuration(now - startTime)}`;
         }
-      }
+      });
     }, 1000);
 
-    // Smooth Auto Scroll
+    // Smooth auto-scroll (time-based, not frame-based)
     const scrollArea = document.getElementById('scrollArea');
     let direction = 'down';
+    let pausedUntil = 0;
+    let lastTime = 0;
 
-    function smoothScroll() {
-      const speed = 1;
+    function smoothScroll(now) {
+      if (!lastTime) lastTime = now;
+      const delta = now - lastTime;
+      lastTime = now;
 
-      function step() {
-        if (direction === 'down') {
-          if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight) {
-            scrollArea.scrollTop += speed;
-            requestAnimationFrame(step);
-          } else {
-            direction = 'up';
-            setTimeout(() => requestAnimationFrame(smoothScroll), 2000); // Pause at bottom
-          }
+      const speed = 30; // px per second
+
+      if (now < pausedUntil) {
+        requestAnimationFrame(smoothScroll);
+        return;
+      }
+
+      if (direction === 'down') {
+        if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight - 1) {
+          scrollArea.scrollTop += speed * (delta / 1000);
         } else {
-          if (scrollArea.scrollTop > 0) {
-            scrollArea.scrollTop -= speed;
-            requestAnimationFrame(step);
-          } else {
-            direction = 'down';
-            setTimeout(() => requestAnimationFrame(smoothScroll), 15000); // Pause at top
-          }
+          direction = 'up';
+          pausedUntil = now + 3000; // 3s pause at bottom
+        }
+      } else {
+        if (scrollArea.scrollTop > 0) {
+          scrollArea.scrollTop -= speed * (delta / 1000);
+        } else {
+          direction = 'down';
+          pausedUntil = now + 3000; // 3s pause at top
         }
       }
 
-      step();
+      requestAnimationFrame(smoothScroll);
     }
 
     window.addEventListener('load', () => {
-      document.dispatchEvent(new Event('touchstart'));
-      setTimeout(() => requestAnimationFrame(smoothScroll), 15000);
+      setTimeout(() => requestAnimationFrame(smoothScroll), 3000); // Start scrolling after 3s
     });
   </script>
 </body>
