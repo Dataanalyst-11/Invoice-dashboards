@@ -172,9 +172,10 @@
           `;
           tbody.appendChild(tr);
         });
+        const untrackedCount = printedCount - trackedCount ;
 
         document.getElementById('summary-row').textContent =
-          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount}`;
+          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount}  | ⛔ Untracked Invoices: ${untrackedCount}`;
       } catch (err) {
         console.error('Fetch error:', err);
         document.getElementById('summary-row').textContent = 'Error loading summary.';
