@@ -132,6 +132,7 @@
         Object.keys(liveTimers).forEach(key => delete liveTimers[key]);
 
         let totalPrintedCount = 0;
+        let printingAreaCount = 0;
 
         data.reverse().forEach(row => {
           const printedTime = row["PRINTED TIME"];
@@ -144,6 +145,8 @@
 
           // Display only those where Store Time In is empty
           if (printedTime && !storeIn) {
+            printingAreaCount++;
+
             const timePrinted = new Date(printedTime);
             const minutesPassed = (new Date() - timePrinted) / (1000 * 60);
             const invoiceId = invoice.replace(/\s/g, '');
@@ -174,7 +177,7 @@
           }
         });
 
-        countDisplay.textContent = `🧾 Total Invoices Printed Today: ${totalPrintedCount}`;
+        countDisplay.textContent = `🧾 Total Invoices Printed Today: ${totalPrintedCount} | 🖨️ Invoices in Printing Area: ${printingAreaCount}`;
       } catch (err) {
         console.error('Fetch error:', err);
       }
@@ -230,5 +233,4 @@
   </script>
 </body>
 </html>
-
 
