@@ -93,15 +93,26 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbx3D72bUKyudEcFfc_yzD3LbAvRuNKq9jKYsfJQlqTorRctoNmFs3ivjuuN3NlNE9IGyA/exec';
     const liveTimers = {};
 
+    // Helper to parse time-only or full datetime
+    function parseDateTime(input) {
+      if (!input) return null;
+      if (/am|pm/i.test(input) && !input.includes('/')) {
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+        return new Date(`${dateStr} ${input}`);
+      }
+      return new Date(input);
+    }
+
     function minutesPassedSince(dateStr) {
-      const now = new Date();
-      const past = new Date(dateStr);
-      return (now - past) / (1000 * 60);
+      const past = parseDateTime(dateStr);
+      if (!past || isNaN(past.getTime())) return 0;
+      return (new Date() - past) / (1000 * 60);
     }
 
     function formatDateTime(input) {
-      const date = new Date(input);
-      if (isNaN(date.getTime())) return input;
+      const date = parseDateTime(input);
+      if (!date || isNaN(date.getTime())) return input;
       const pad = n => n.toString().padStart(2, '0');
       return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
     }
@@ -121,7 +132,7 @@
         tbody.innerHTML = ''; // Clear existing rows
         let invoiceCount = 0;
 
-        data.sort((a, b) => new Date(b["CONFIRMATION TIME IN"]) - new Date(a["CONFIRMATION TIME IN"])); // newest first
+        data.sort((a, b) => parseDateTime(b["CONFIRMATION TIME IN"]) - parseDateTime(a["CONFIRMATION TIME IN"])); // newest first
 
         const newInvoices = [];
 
@@ -159,7 +170,7 @@
             `;
 
             tbody.appendChild(tr);
-            liveTimers[invoiceId] = new Date(confirmIn);
+            liveTimers[invoiceId] = parseDateTime(confirmIn);
             newInvoices.push(invoice);
             invoiceCount++;
           }
@@ -183,7 +194,7 @@
       const now = new Date();
       for (const [invoiceId, startTime] of Object.entries(liveTimers)) {
         const timerElem = document.getElementById(`timer-${invoiceId}`);
-        if (timerElem) {
+        if (timerElem && startTime) {
           const elapsed = now - startTime;
           timerElem.textContent = `⏱️ In Confirmation for: ${formatDuration(elapsed)}`;
         }
@@ -228,4 +239,3 @@
   </script>
 </body>
 </html>
-
