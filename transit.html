@@ -119,11 +119,17 @@
     }
 
     function formatDuration(ms) {
-      const totalSec = Math.floor(ms / 1000);
-      const minutes = Math.floor(totalSec / 60);
-      const seconds = totalSec % 60;
-      return `${minutes} min ${seconds} sec`;
-    }
+  const totalSec = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+
+  if (hours > 0) {
+    return `${hours} hr ${minutes} min ${seconds} sec`;
+  }
+  return `${minutes} min ${seconds} sec`;
+}
+
 
     function parseStoreOut(storeOut) {
       // If it's just a time string (e.g., "10:05:19 am"), prepend today’s date
@@ -245,3 +251,4 @@
   </script>
 </body>
 </html>
+
