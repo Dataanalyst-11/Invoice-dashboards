@@ -103,8 +103,8 @@
         card.innerHTML = `
           <h2 class="text-xl font-bold mb-2">${rider.name}</h2>
           <p class="text-lg">✅ Total Assigned: <span class="font-bold">${rider.delivered}</span></p>
-          <p class="text-lg">🔴 On Transit: <span class="font-bold">${rider.pending}</span></p>
-          <p class="text-lg">👍 Cleared: <span class="font-bold">${rider.delivered - rider.pending}</span></p>
+          <p class="text-lg">🔴 In Transit: <span class="font-bold">${rider.pending}</span></p>
+          <p class="text-lg">👩‍🏫 Cleared: <span class="font-bold">${rider.delivered - rider.pending}</span></p>
         `;
 
         riderGrid.appendChild(card);
@@ -171,6 +171,7 @@
   </script>
 </body>
 </html>
+
 
 
 
