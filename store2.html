@@ -124,77 +124,115 @@
     }
 
     function formatDuration(ms) {
-      const totalSec = Math.floor(ms / 1000);
-      const minutes = Math.floor(totalSec / 60);
-      const seconds = totalSec % 60;
-      return `${minutes} min ${seconds} sec`;
-    }
+  const totalSec = Math.floor(ms / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+
+  if (hours > 0) {
+    return `${hours} hr ${minutes} min ${seconds} sec`;
+  }
+  return `${minutes} min ${seconds} sec`;
+}
 
     async function fetchData() {
-      try {
-        const res = await fetch(API_URL);
-        if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-        const data = await res.json();
+  try {
+    const res = await fetch(API_URL);
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    const data = await res.json();
 
-        const tbody = document.getElementById('table-body');
-        const fragment = document.createDocumentFragment();
-        let invoiceCount = 0;
-        const newTimers = new Map();
+    const tbody = document.getElementById('table-body');
+    const seen = new Set();
+    let invoiceCount = 0;
+    const newTimers = new Map();
 
-        data.reverse().forEach(row => {
-          const storeIn = row["Store Time In"];
-          const storeOut = row["Store Time Out"];
-          const invoice = row["INVOICE NUMBER"] || '';
+    data.reverse().forEach(row => {
+      const storeIn = row["Store Time In"];
+      const storeOut = row["Store Time Out"];
+      const invoice = row["INVOICE NUMBER"] || "";
 
-          if (storeIn && !storeOut) {
-            invoiceCount++;
-            const timeIn = new Date(storeIn);
-            const now = new Date();
-            const minutesPassed = (now - timeIn) / (1000 * 60);
-            const invoiceId = encodeURIComponent(invoice || `row-${Math.random().toString(36).slice(2)}`);
-            const timerId = `timer-${invoiceId}`;
+      if (storeIn && !storeOut) {
+        invoiceCount++;
+        const timeIn = new Date(storeIn);
+        const now = new Date();
+        const minutesPassed = (now - timeIn) / (1000 * 60);
+        const invoiceId = encodeURIComponent(invoice || `row-${Math.random().toString(36).slice(2)}`);
+        const timerId = `timer-${invoiceId}`;
+        seen.add(invoiceId);
 
-            const tr = document.createElement('tr');
-            if (minutesPassed > 20) {
-              tr.classList.add('highlight-red');
-            } else if (minutesPassed > 10) {
-              tr.classList.add('highlight-yellow');
-            } else {
-              tr.classList.add('highlight-green');
-            }
+        let tr = document.getElementById(invoiceId);
+        if (!tr) {
+          // Create new row
+          tr = document.createElement('tr');
+          tr.id = invoiceId;
 
-            tr.innerHTML = `
-              <td>${invoice}</td>
-              <td>${row["STORE EXECUTIVE"] || ''}</td>
-              <td>
-                ${formatDateTime(storeIn)}<br>
-                <small id="${timerId}">⏱️ In Store for: ${formatDuration(now - timeIn)}</small>
-              </td>
-              <td>${row["CUSTOMER NAME"] || ''}</td>
-              <td>${row["ROUTE"] || ''}</td>
-            `;
+          const tdInvoice = document.createElement("td");
+          tdInvoice.textContent = invoice;
+          tr.appendChild(tdInvoice);
 
-            fragment.appendChild(tr);
-            newTimers.set(invoiceId, timeIn);
-          }
-        });
+          const tdExecutive = document.createElement("td");
+          tdExecutive.textContent = row["STORE EXECUTIVE"] || "";
+          tr.appendChild(tdExecutive);
 
-        // Update table in one batch
-        tbody.innerHTML = '';
-        tbody.appendChild(fragment);
+          const tdTime = document.createElement("td");
+          const spanDate = document.createElement("span");
+          spanDate.textContent = formatDateTime(storeIn);
+          const br = document.createElement("br");
+          const smallTimer = document.createElement("small");
+          smallTimer.id = timerId;
+          smallTimer.textContent = `⏱️ In Store for: ${formatDuration(now - timeIn)}`;
+          tdTime.appendChild(spanDate);
+          tdTime.appendChild(br);
+          tdTime.appendChild(smallTimer);
+          tr.appendChild(tdTime);
 
-        // Replace timers with new set
-        liveTimers.clear();
-        newTimers.forEach((v, k) => liveTimers.set(k, v));
+          const tdCustomer = document.createElement("td");
+          tdCustomer.textContent = row["CUSTOMER NAME"] || "";
+          tr.appendChild(tdCustomer);
 
-        document.getElementById('invoiceCount').textContent =
-          `🔢 Total Invoices in Store: ${invoiceCount}`;
+          const tdRoute = document.createElement("td");
+          tdRoute.textContent = row["ROUTE"] || "";
+          tr.appendChild(tdRoute);
 
-      } catch (err) {
-        console.error('Fetch error:', err);
-        document.getElementById('invoiceCount').textContent = 'Error loading invoices';
+          tbody.prepend(tr); // newest invoices at top
+        }
+
+        // Update row highlighting
+        tr.className = "";
+        if (minutesPassed > 20) {
+          tr.classList.add('highlight-red');
+        } else if (minutesPassed > 10) {
+          tr.classList.add('highlight-yellow');
+        } else {
+          tr.classList.add('highlight-green');
+        }
+
+        // Track active timers
+        newTimers.set(invoiceId, timeIn);
       }
-    }
+    });
+
+    // Remove rows that no longer exist
+    [...tbody.children].forEach(tr => {
+      if (!seen.has(tr.id)) {
+        tbody.removeChild(tr);
+        liveTimers.delete(tr.id);
+      }
+    });
+
+    // Replace timers with new set
+    liveTimers.clear();
+    newTimers.forEach((v, k) => liveTimers.set(k, v));
+
+    document.getElementById('invoiceCount').textContent =
+      `🔢 Total Invoices in Store: ${invoiceCount}`;
+
+  } catch (err) {
+    console.error('Fetch error:', err);
+    document.getElementById('invoiceCount').textContent = 'Error loading invoices';
+  }
+}
+
 
     // Initial load and periodic refresh
     fetchData();
@@ -222,7 +260,7 @@
       const delta = now - lastTime;
       lastTime = now;
 
-      const speed = 30; // px per second
+      const speed = 40; // px per second
 
       if (now < pausedUntil) {
         requestAnimationFrame(smoothScroll);
@@ -254,5 +292,4 @@
   </script>
 </body>
 </html>
-
 
