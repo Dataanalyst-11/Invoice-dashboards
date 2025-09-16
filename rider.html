@@ -24,9 +24,10 @@
   <!-- Header -->
   <div class="bg-gradient-to-r from-green-600 to-blue-600 text-white text-center py-6 shadow-lg sticky top-0 z-50">
     <h1 class="text-3xl font-bold">Dispatch Summary Dashboard</h1>
-    <div class="mt-2 text-xl">
-      <span id="totalDelivered">Delivered Today: 0</span> |
-      <span id="totalPending">Pending Clearance: 0</span> |
+    <div class="mt-2 text-3xl font-bold">
+      <span id="totalDelivered">Dispatched Today: 0</span> |
+      <span id="totalPending">Pending Clearance: 0</span>  | 
+      <span id="totalCleared">Cleared: 0</span>
       <span id="currentDate"></span>
     </div>
   </div>
@@ -61,6 +62,8 @@
         const riderData = fullData
           .filter(row =>
             row["RIDER LIST"] &&
+            row["RIDER LIST"].toLowerCase() !== "c/waiting" &&   // 🚫 skip C/Waiting
+            row["RIDER LIST"].toLowerCase() !== "record only" && // 🚫 skip Record only
             row["TOTAL NO. OF ORDERS DELIVERED TODAY"] !== undefined &&
             row["NO. OF INVOICES PENDING CLEARANCE"] !== undefined
           )
@@ -77,46 +80,67 @@
           `<div class="col-span-full text-center text-red-600 font-bold">⚠️ Error loading data</div>`;
       }
     }
+ function renderDashboard(riders) {
+  const riderGrid = document.getElementById('riderGrid');
+  const seen = new Set();
 
-    function renderDashboard(riders) {
-      const riderGrid = document.getElementById('riderGrid');
-      riderGrid.innerHTML = '';
+  let totalDelivered = 0;
+  let totalPending = 0;
+  let totalCleared = 0;
 
-      let totalDelivered = 0;
-      let totalPending = 0;
+  riders.forEach(rider => {
+    totalDelivered += rider.delivered;
+    totalPending += rider.pending;
+    totalCleared += rider.delivered - rider.pending;
+    seen.add(rider.name);
 
-      riders.forEach(rider => {
-        totalDelivered += rider.delivered;
-        totalPending += rider.pending;
+    let card = document.getElementById(`rider-${rider.name}`);
+    const isGreen = rider.pending === 0;
 
-        const card = document.createElement('section');
-        card.setAttribute('role', 'region');
-        card.setAttribute('aria-label', `Rider ${rider.name}`);
-        const isGreen = rider.pending === 0;
+    if (!card) {
+      // Create new card if it doesn't exist
+      card = document.createElement('section');
+      card.id = `rider-${rider.name}`;
+      card.setAttribute('role', 'region');
+      card.setAttribute('aria-label', `Rider ${rider.name}`);
 
-        card.className = `card rounded-2xl p-4 border-4 ${
-          isGreen
-            ? 'bg-green-600 border-green-600 text-white'
-            : 'bg-pink-700 border-pink-700 text-white'
-        }`;
-
-        card.innerHTML = `
-          <h2 class="text-xl font-bold mb-2">${rider.name}</h2>
-          <p class="text-lg">📖 Total Assigned: <span class="font-bold">${rider.delivered}</span></p>
-          <p class="text-lg">🏍️ In Transit: <span class="font-bold">${rider.pending}</span></p>
-          <p class="text-lg">🔴 Cleared: <span class="font-bold">${rider.delivered - rider.pending}</span></p>
-        `;
-
-        riderGrid.appendChild(card);
-      });
-
-      document.getElementById('totalDelivered').textContent = `Delivered Today: ${totalDelivered}`;
-      document.getElementById('totalPending').textContent = `Pending Clearance: ${totalPending}`;
-
-      const now = new Date();
-      document.getElementById('currentDate').textContent = `Date: ${now.toLocaleDateString()}`;
-      document.getElementById('lastUpdated').textContent = `Last Updated: ${now.toLocaleTimeString()}`;
+      card.className = `card rounded-2xl p-4 border-4 text-white text-xl`; // 🔥 bigger font
+      riderGrid.appendChild(card);
     }
+
+    // Update card classes
+    card.className = `card rounded-2xl p-4 border-4 text-white text-2xl ${
+      isGreen
+        ? 'bg-green-600 border-green-600'
+        : 'bg-pink-700 border-pink-700'
+    }`;
+
+    // Update card content
+    card.innerHTML = `
+      <h2 class="text-2xl font-extrabold mb-4">${rider.name}</h2>
+      <p class="mb-2">📖 Total Assigned: <span class="font-bold">${rider.delivered}</span></p>
+      <p class="mb-2">🏍️ On Transit: <span class="font-bold">${rider.pending}</span></p>
+      <p class="mb-2">✅ Cleared: <span class="font-bold">${rider.delivered - rider.pending}</span></p>
+    `;
+  });
+
+  // Remove old cards not in current data
+  [...riderGrid.children].forEach(card => {
+    if (!seen.has(card.id.replace('rider-', ''))) {
+      riderGrid.removeChild(card);
+    }
+  });
+
+  // ✅ Update header totals with bigger font
+  document.getElementById('totalDelivered').textContent = `Dispatched Today: ${totalDelivered}`;
+  document.getElementById('totalPending').textContent = `Pending Clearance: ${totalPending}`;
+  document.getElementById('totalCleared').textContent = `Cleared: ${totalCleared}`;
+
+  const now = new Date();
+  document.getElementById('currentDate').textContent = `📅 ${now.toLocaleDateString()}`;
+  document.getElementById('lastUpdated').textContent = `⏱️ Last Updated: ${now.toLocaleTimeString()}`;
+}
+
 
     function smoothScroll(now) {
       if (!lastTime) lastTime = now;
@@ -171,8 +195,5 @@
   </script>
 </body>
 </html>
-
-
-
 
 
