@@ -137,7 +137,7 @@
   document.getElementById('totalCleared').textContent = `Cleared: ${totalCleared}`;
 
   const now = new Date();
-  document.getElementById('currentDate').textContent = `📆 ${now.toLocaleDateString()}`;
+  document.getElementById('currentDate').textContent = `📆 ${now.toLocaleDateString('en-GB')}`;
   document.getElementById('lastUpdated').textContent = `⏱️ Last Updated: ${now.toLocaleTimeString()}`;
 }
 
@@ -195,6 +195,7 @@
   </script>
 </body>
 </html>
+
 
 
 
