@@ -157,7 +157,7 @@
           const storeIn = row["Store Time In"];
           const storeOut = row["Store Time Out"];
           const invoice = row["INVOICE NUMBER"] || "";
-          if (storeIn) storeCount++;
+          if (storeIn && storeOut) storeCount++;
 
           if (storeIn && !storeOut) {
             invoiceCount++;
@@ -262,3 +262,4 @@
   </script>
 </body>
 </html>
+
