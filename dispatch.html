@@ -30,7 +30,7 @@
 
     #count-display {
       text-align: center;
-      font-size: 1.2em;
+      font-size: 1.8em;
       font-weight: bold;
       padding: 10px;
       background: #ffe5e5;
@@ -90,8 +90,8 @@
   </style>
 </head>
 <body>
-  <h1>🚚 Invoices at Dispatch</h1>
-  <div id="count-display">Invoices at Dispatch: 0</div>
+  <h1>🚚 DISPATCH TRACKING DASHBOARD</h1>
+  <div id="count-display">Loading count🔁: 0</div>
 
   <div class="table-container" id="scrollArea">
     <table>
@@ -142,11 +142,13 @@
         Object.keys(liveTimers).forEach(key => delete liveTimers[key]);
 
         let count = 0;
+        let delivered = 0;
 
         data.reverse().forEach(row => {
           const confirmationOut = row["CONFIRMATION TIME OUT"];
           const rider = row["RIDER"];
           const invoice = row["INVOICE NUMBER"] || '';
+          if(rider) delivered++;
 
           if (confirmationOut && !rider) {
             count++;
@@ -181,7 +183,7 @@
           }
         });
 
-        countDisplay.textContent = `Invoices at Dispatch: ${count}`;
+        countDisplay.textContent = `Invoices Delivered Today: ${delivered}  | Active Invoices at Dispatch Area: ${count}`;
 
       } catch (err) {
         console.error('Fetch error:', err);
