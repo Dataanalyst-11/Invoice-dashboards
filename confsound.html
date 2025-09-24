@@ -21,7 +21,7 @@
     }
     #invoiceCount {
       text-align: center;
-      font-size: 1.2em;
+      font-size: 1.8em;
       margin-top: 10px;
       font-weight: bold;
       color: #333;
@@ -69,7 +69,7 @@
   </style>
 </head>
 <body>
-  <h1>🔵 In Confirmation Invoices</h1>
+  <h1>🔵 CONFIRMATION TRACKING DASHBOARD</h1>
   <div id="invoiceCount">Loading invoice count...</div>
 
   <div id="scrollArea">
@@ -136,7 +136,9 @@
         const data = await res.json();
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = ''; // Clear existing rows
+
         let invoiceCount = 0;
+        let confirmationCount = 0;
 
         data.sort((a, b) => parseDateTime(b["CONFIRMATION TIME IN"]) - parseDateTime(a["CONFIRMATION TIME IN"])); // newest first
 
@@ -147,6 +149,8 @@
           const confirmIn = row["CONFIRMATION TIME IN"];
           const confirmOut = row["CONFIRMATION TIME OUT"];
           const invoice = row["INVOICE NUMBER"] || '';
+          //Count all invoices tracked in confirmation
+          if(confirmIn && confirmOut) confirmationCount++;
 
           if (storeOut && confirmIn && !confirmOut) {
             const minutesPassed = minutesPassedSince(confirmIn);
@@ -182,7 +186,7 @@
           }
         });
 
-        document.getElementById('invoiceCount').textContent = `🔢 Total Invoices in Confirmation: ${invoiceCount}`;
+        document.getElementById('invoiceCount').textContent = `Total invoices tracked in Confirmation: ${confirmationCount} |🔢 Active Invoices in Confirmation: ${invoiceCount}`;
 
         if (newInvoices.length > 0) {
           const beep = document.getElementById('beep');
@@ -245,4 +249,3 @@
   </script>
 </body>
 </html>
-
