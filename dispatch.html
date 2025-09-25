@@ -223,10 +223,44 @@
       }
     }
   }, 1000);
+    // Smooth auto-scroll
+    let direction = 'down';
+    let pausedUntil = 0;
+    let lastTime = 0;
+
+    function smoothScroll(now) {
+      if (!lastTime) lastTime = now;
+      const delta = now - lastTime;
+      lastTime = now;
+      const speed = 40;
+      if (now < pausedUntil) return requestAnimationFrame(smoothScroll);
+
+      if (direction === 'down') {
+        if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight - 1) {
+          scrollArea.scrollTop += speed * (delta / 1000);
+        } else {
+          direction = 'up';
+          pausedUntil = now + 3000;
+        }
+      } else {
+        if (scrollArea.scrollTop > 0) {
+          scrollArea.scrollTop -= speed * (delta / 1000);
+        } else {
+          direction = 'down';
+          pausedUntil = now + 3000;
+        }
+      }
+      requestAnimationFrame(smoothScroll);
+    }
+
+    window.addEventListener('load', () => {
+      setTimeout(() => requestAnimationFrame(smoothScroll), 3000);
+    });
 </script>
 
 </body>
 </html>
+
 
 
 
