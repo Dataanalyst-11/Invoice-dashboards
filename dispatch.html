@@ -108,144 +108,126 @@
   </div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzx0wmr0EN7nDCj7Aq6sYRUSEK423Q1LFnWifHv88HzeBc7ADZF6f4XD_lBJMi6oGIh/exec';
-    const liveTimers = {};
+  const API_URL = 'https://script.google.com/macros/s/AKfycbzx0wmr0EN7nDCj7Aq6sYRUSEK423Q1LFnWifHv88HzeBc7ADZF6f4XD_lBJMi6oGIh/exec';
+  const liveTimers = {};
 
-    function formatDateTime(input) {
-      const date = new Date(input);
-      if (isNaN(date.getTime())) return input;
-      const pad = n => n.toString().padStart(2, '0');
-      return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  function formatDateTime(input) {
+    const date = parseDate(input);
+    if (!date) return input || '';
+    const pad = n => n.toString().padStart(2, '0');
+    return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  }
+
+  function formatDuration(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSec / 3600);
+    const minutes = Math.floor((totalSec % 3600) / 60);
+    const seconds = totalSec % 60;
+    return hours > 0
+      ? `${hours} hr ${minutes} min ${seconds} sec`
+      : `${minutes} min ${seconds} sec`;
+  }
+
+  function parseDate(value) {
+    if (!value) return null;
+
+    // First try native parse
+    const d = new Date(value);
+    if (!isNaN(d)) return d;
+
+    // Handle dd/MM/yyyy hh:mm:ss
+    const parts = value.split(/[/ :]/);
+    if (parts.length >= 5 && parts[0].length <= 2) {
+      const [day, month, year, hour, minute, second = 0] = parts.map(Number);
+      return new Date(year, month - 1, day, hour, minute, second);
     }
 
-    function formatDuration(ms) {
-      const totalSec = Math.floor(ms / 1000);
-      const hours = Math.floor(totalSec / 3600);
-      const minutes = Math.floor((totalSec % 3600) / 60);
-      const seconds = totalSec % 60;
-
-      if (hours > 0) {
-        return `${hours} hr ${minutes} min ${seconds} sec`;
-      } else {
-        return `${minutes} min ${seconds} sec`;
-      }
+    // Handle only time strings (hh:mm:ss am/pm)
+    if (/am|pm/i.test(value) && !value.includes('/')) {
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0]; // yyyy-mm-dd
+      const d2 = new Date(`${dateStr} ${value}`);
+      if (!isNaN(d2)) return d2;
     }
 
-    async function fetchData() {
-      try {
-        const res = await fetch(API_URL);
-        const data = await res.json();
-        const tbody = document.getElementById('table-body');
-        const countDisplay = document.getElementById('count-display');
+    return null;
+  }
 
-        tbody.innerHTML = '';
-        Object.keys(liveTimers).forEach(key => delete liveTimers[key]);
+  async function fetchData() {
+    try {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      const tbody = document.getElementById('table-body');
+      const countDisplay = document.getElementById('count-display');
 
-        let count = 0;
-        let delivered = 0;
+      tbody.innerHTML = '';
+      Object.keys(liveTimers).forEach(key => delete liveTimers[key]);
 
-        data.reverse().forEach(row => {
-          const confirmationOut = row["CONFIRMATION TIME OUT"];
-          const rider = row["RIDER"];
-          const invoice = row["INVOICE NUMBER"] || '';
-          if(rider) delivered++;
+      let count = 0;
+      let delivered = 0;
 
-          if (confirmationOut && !rider) {
-            count++;
-            const timeOut = new Date(confirmationOut);
-            const now = new Date();
-            const minutesPassed = (now - timeOut) / (1000 * 60);
-            const invoiceId = invoice.replace(/\s/g, '');
-            const timerId = `timer-${invoiceId}`;
+      data.reverse().forEach(row => {
+        const confirmationOut = row["CONFIRMATION TIME OUT"];
+        const rider = row["RIDER"];
+        const invoice = row["INVOICE NUMBER"] || '';
+        if (rider) delivered++;
 
-            const tr = document.createElement('tr');
+        const timeOut = parseDate(confirmationOut);
+        if (timeOut && !rider) {
+          count++;
+          const now = new Date();
+          const minutesPassed = (now - timeOut) / (1000 * 60);
+          const invoiceId = invoice.replace(/\s/g, '');
+          const timerId = `timer-${invoiceId}`;
 
-            if (minutesPassed > 50) {
-              tr.classList.add('highlight-red');
-            } else if (minutesPassed > 25) {
-              tr.classList.add('highlight-yellow');
-            } else {
-              tr.classList.add('highlight-green');
-            }
+          const tr = document.createElement('tr');
+          if (minutesPassed > 50) tr.classList.add('highlight-red');
+          else if (minutesPassed > 25) tr.classList.add('highlight-yellow');
+          else tr.classList.add('highlight-green');
 
-            tr.innerHTML = `
-              <td>${invoice}</td>
-              <td>${row["CUSTOMER NAME"] || ''}</td>
-              <td>${row["ROUTE"] || ''}</td>
-              <td>
-                ${formatDateTime(confirmationOut)}<br>
-                <small id="${timerId}">⏱️ Waiting: calculating...</small>
-              </td>
-            `;
+          tr.innerHTML = `
+            <td>${invoice}</td>
+            <td>${row["CUSTOMER NAME"] || ''}</td>
+            <td>${row["ROUTE"] || ''}</td>
+            <td>
+              ${formatDateTime(confirmationOut)}<br>
+              <small id="${timerId}">⏱️ Waiting: calculating...</small>
+            </td>
+          `;
 
-            tbody.appendChild(tr);
-            liveTimers[invoiceId] = timeOut;
-          }
-        });
+          tbody.appendChild(tr);
+          liveTimers[invoiceId] = timeOut;
+        }
+      });
 
-        countDisplay.textContent = `Invoices Dispatched Today: ${delivered}  | Active Invoices at Dispatch Area: ${count}`;
+      countDisplay.textContent =
+        `Invoices Dispatched Today: ${delivered} | Active Invoices at Dispatch Area: ${count}`;
 
-      } catch (err) {
-        console.error('Fetch error:', err);
-      }
+    } catch (err) {
+      console.error('Fetch error:', err);
     }
+  }
 
-    fetchData();
-    setInterval(fetchData, 30000);
+  fetchData();
+  setInterval(fetchData, 30000);
 
-    setInterval(() => {
-      const now = new Date();
-      for (const [invoiceId, startTime] of Object.entries(liveTimers)) {
-        const timerElem = document.getElementById(`timer-${invoiceId}`);
-        if (timerElem) {
-          const elapsed = now - startTime;
+  setInterval(() => {
+    const now = new Date();
+    for (const [invoiceId, startTime] of Object.entries(liveTimers)) {
+      const timerElem = document.getElementById(`timer-${invoiceId}`);
+      if (timerElem && startTime instanceof Date) {
+        const elapsed = now - startTime;
+        if (!isNaN(elapsed)) {
           timerElem.textContent = `⏱️ Waiting: ${formatDuration(elapsed)}`;
         }
       }
-    }, 1000);
-
-    // ✅ Smooth Auto Scroll with constant speed
-    const scrollArea = document.getElementById('scrollArea');
-    let direction = 'down';
-    let pausedUntil = 0;
-
-    function smoothScroll() {
-      function step(now) {
-        const speed = 1;
-
-        if (now < pausedUntil) {
-          requestAnimationFrame(step);
-          return;
-        }
-
-        if (direction === 'down') {
-          if (scrollArea.scrollTop + scrollArea.clientHeight < scrollArea.scrollHeight - 1) {
-            scrollArea.scrollTop += speed;
-          } else {
-            direction = 'up';
-            pausedUntil = now + 2000; // pause at bottom
-          }
-        } else {
-          if (scrollArea.scrollTop > 0) {
-            scrollArea.scrollTop -= speed;
-          } else {
-            direction = 'down';
-            pausedUntil = now + 2000; // pause at top
-          }
-        }
-
-        requestAnimationFrame(step);
-      }
-
-      requestAnimationFrame(step);
     }
+  }, 1000);
+</script>
 
-    window.addEventListener('load', () => {
-      setTimeout(() => smoothScroll(), 3000); // Initial delay
-    });
-  </script>
 </body>
 </html>
+
 
 
 
