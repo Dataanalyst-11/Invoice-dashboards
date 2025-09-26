@@ -147,7 +147,7 @@
           const volumeNorm = maxOrders > 0 ? e.orders / maxOrders : 0;
           const timeNorm = e.avgTime > 0 && minAvgTime < Infinity ? minAvgTime / e.avgTime : 0;
           const accuracyNorm = e.orders > 0 ? 1 - (e.corrections / e.orders) : 0;
-          const score = (0.35 * volumeNorm + 0.20 * timeNorm + 0.15 * accuracyNorm) * (100 / 0.70);
+          const score = (0.40 * volumeNorm + 0.20 * timeNorm + 0.10 * accuracyNorm) * (100 / 0.70);
           return { ...e, score };
         }).sort((a, b) => b.score - a.score);
 
@@ -234,4 +234,5 @@
   </script>
 </body>
 </html>
+
 
