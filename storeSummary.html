@@ -78,11 +78,10 @@
 </head>
 <body>
   <div class="header">
-  <h1>📊 Store Executive Performance Summary</h1>
-  <div class="summary" id="summary-row">Loading summary...</div>
-  <div id="clock" style="font-size:3rem; margin-top:5px; font-weight:bold;"></div>
- </div>
-
+    <h1>📊 Store Executive Performance Summary</h1>
+    <div class="summary" id="summary-row">Loading summary...</div>
+    <div id="clock" style="font-size:3rem; margin-top:5px; font-weight:bold;"></div>
+  </div>
 
   <div class="table-container" id="scrollArea">
     <table>
@@ -108,76 +107,77 @@
         const execMap = {};
         let printedCount = 0;
         let trackedCount = 0;
-        let totalValue = 0;
 
         data.forEach(row => {
           const exec = row["STORE EXECUTIVE"];
+          const timeTaken = parseFloat(row["STORE TIME TAKEN"]) || 0;
+          const correction = row["CORRECTIONS"] ? 1 : 0;
           const printed = row["PRINTED TIME"];
           const storeTimeOut = row["Store Time Out"];
-          const amount = parseFloat(row["INVOICE AMOUNT"]?.toString().replace(/,/g, '')) || 0;
-          const correctionValue = row["CORRECTIONS"]?.toString().trim();
 
           if (printed) printedCount++;
           if (storeTimeOut) trackedCount++;
 
           if (exec) {
             if (!execMap[exec]) {
-              execMap[exec] = { count: 0, totalValue: 0, corrections: 0 };
+              execMap[exec] = { orders: 0, totalTime: 0, corrections: 0 };
             }
-            execMap[exec].count += 1;
-            execMap[exec].totalValue += amount;
-            totalValue += amount;
-
-            if (correctionValue !== "" && !isNaN(Number(correctionValue))) {
-              execMap[exec].corrections += Number(correctionValue);
-            }
+            execMap[exec].orders += 1;
+            execMap[exec].totalTime += timeTaken;
+            execMap[exec].corrections += correction;
           }
         });
 
-        const execList = Object.entries(execMap)
-          .map(([name, obj]) => {
-            const percentage = totalValue > 0 ? ((obj.totalValue / totalValue) * 100).toFixed(2) : "0.00";
-            return {
-              name,
-              count: obj.count,
-              corrections: obj.corrections,
-              percentage: percentage
-            };
-          })
-          .sort((a, b) => b.percentage - a.percentage);
+        // Step 1: compute stats per exec
+        const execStats = Object.entries(execMap).map(([name, obj]) => {
+          return {
+            name,
+            orders: obj.orders,
+            avgTime: obj.orders > 0 ? obj.totalTime / obj.orders : 0,
+            corrections: obj.corrections
+          };
+        });
 
+        // Step 2: global max/min
+        const maxOrders = Math.max(...execStats.map(e => e.orders), 0);
+        const minAvgTime = Math.min(...execStats.filter(e => e.avgTime > 0).map(e => e.avgTime), Infinity);
+
+        // Step 3: composite score
+        const execList = execStats.map(e => {
+          const volumeNorm = maxOrders > 0 ? e.orders / maxOrders : 0;
+          const timeNorm = e.avgTime > 0 && minAvgTime < Infinity ? minAvgTime / e.avgTime : 0;
+          const accuracyNorm = e.orders > 0 ? 1 - (e.corrections / e.orders) : 0;
+          const score = (0.25 * volumeNorm + 0.20 * timeNorm + 0.15 * accuracyNorm) * (100 / 0.60);
+          return { ...e, score };
+        }).sort((a, b) => b.score - a.score);
+
+        // Step 4: render
         const tbody = document.getElementById('table-body');
         tbody.innerHTML = '';
         execList.forEach(item => {
           const tr = document.createElement('tr');
-          const perc = parseFloat(item.percentage);
-
-          if (perc <= 5) tr.className = 'low';
-          else if (perc <= 15) tr.className = 'medium';
+          if (item.score < 50) tr.className = 'low';
+          else if (item.score < 75) tr.className = 'medium';
           else tr.className = 'high';
 
           tr.innerHTML = `
             <td class="exec-name">
               <div class="avatar">${getInitials(item.name)}</div>${item.name}
             </td>
+            <td>${item.orders} ${item.corrections > 0 ? `<div style="font-size:0.85rem; color:black; font-weight:bold;">(${item.corrections} correction${item.corrections > 1 ? 's' : ''})</div>` : ''}</td>
             <td>
-              ${item.count}
-              ${item.corrections > 0 ? `<div style="font-size: 0.85rem; color: black; font-weight: bold;">
-(${item.corrections} correction${item.corrections > 1 ? 's' : ''})</div>` : ''}
-            </td>
-            <td>
-              <div>${item.percentage}%</div>
+              <div>${item.score.toFixed(2)}%</div>
               <div class="progress-container">
-                <div class="progress-bar" style="width: ${perc}%"></div>
+                <div class="progress-bar" style="width:${Math.min(item.score,100)}%"></div>
               </div>
             </td>
           `;
           tbody.appendChild(tr);
         });
-        const untrackedCount = printedCount - trackedCount ;
 
+        const untrackedCount = printedCount - trackedCount;
         document.getElementById('summary-row').textContent =
-          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount}  | ⛔ Untracked Invoices: ${untrackedCount}`;
+          `🧾 Total Printed Invoices: ${printedCount} | ✅ Total Tracked: ${trackedCount} | ⛔ Untracked Invoices: ${untrackedCount}`;
       } catch (err) {
         console.error('Fetch error:', err);
         document.getElementById('summary-row').textContent = 'Error loading summary.';
@@ -191,6 +191,7 @@
     fetchData();
     setInterval(fetchData, 30000);
 
+    // Auto-scroll
     const scrollArea = document.getElementById('scrollArea');
     let scrollDirection = 'down';
     const scrollSpeed = 1;
@@ -215,26 +216,21 @@
         }
       }
     }
-
     window.addEventListener('load', () => {
       setTimeout(() => requestAnimationFrame(scrollStep), 2000);
     });
 
-  function updateClock() {
-   const now = new Date();
-   const options = { 
-    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
-   };
-   document.getElementById('clock').textContent = now.toLocaleString('en-US', options);
+    // Clock
+    function updateClock() {
+      const now = new Date();
+      const options = { 
+        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      };
+      document.getElementById('clock').textContent = now.toLocaleString('en-US', options);
     }
-
- // Update immediately and then every second
- updateClock();
- setInterval(updateClock, 1000);
- 
+    updateClock();
+    setInterval(updateClock, 1000);
   </script>
 </body>
 </html>
-
-
