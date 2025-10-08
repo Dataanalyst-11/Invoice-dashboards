@@ -232,7 +232,7 @@
       if (!lastTime) lastTime = now;
       const delta = now - lastTime;
       lastTime = now;
-      const speed = 40;
+      const speed = 70;
       if (now < pausedUntil) return requestAnimationFrame(smoothScroll);
 
       if (direction === 'down') {
@@ -260,6 +260,7 @@
 
 </body>
 </html>
+
 
 
 
